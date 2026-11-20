@@ -7,7 +7,7 @@
  * nobody uses.
  */
 import { handle } from 'hono/vercel';
-import app from '../src/app';
+import app from '../src/app.tsx';
 
 export const config = {
   runtime: 'nodejs',
