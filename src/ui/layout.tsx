@@ -1,7 +1,7 @@
 import type { FC, PropsWithChildren } from 'hono/jsx';
 import { raw } from 'hono/html';
 
-export type NavId = 'overview' | 'models' | 'providers' | 'usage';
+export type NavId = 'overview' | 'models' | 'providers' | 'playground' | 'usage';
 
 /**
  * 16px outline icons, 1.5px stroke — the stroke settings live in app.css so the
@@ -13,6 +13,8 @@ const ICONS: Record<NavId, string> = {
   models: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
   providers:
     '<circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="18" r="2.4"/><circle cx="19" cy="18" r="2.4"/><path d="M12 7.4v3.8M12 11.2L6.6 15.9M12 11.2l5.4 4.7"/>',
+  playground:
+    '<path d="M8 5l10 7-10 7V5z"/>',
   usage: '<path d="M3 17l5-6 4 3 6-8"/>',
 };
 
@@ -20,6 +22,7 @@ const NAV: Array<{ id: NavId; href: string; label: string }> = [
   { id: 'overview', href: '/', label: 'Overview' },
   { id: 'models', href: '/models', label: 'Models' },
   { id: 'providers', href: '/providers', label: 'Providers' },
+  { id: 'playground', href: '/playground', label: 'Playground' },
   { id: 'usage', href: '/usage', label: 'Usage' },
 ];
 

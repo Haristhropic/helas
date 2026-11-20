@@ -17,6 +17,7 @@ import { Models, type ModelFilter } from './ui/pages/models.tsx';
 import { Providers } from './ui/pages/providers.tsx';
 import { Usage, type UsageMetric } from './ui/pages/usage.tsx';
 import { Login } from './ui/pages/login.tsx';
+import { Playground } from './ui/pages/playground.tsx';
 
 const app = new Hono();
 
@@ -66,6 +67,10 @@ app.get('/usage', requireDashboard, (c) => {
   const asked = c.req.query('m');
   const metric: UsageMetric = asked === 'tokens' || asked === 'burn' ? asked : 'requests';
   return page('usage', 'Usage', 'Usage', c, <Usage metric={metric} />);
+});
+
+app.get('/playground', requireDashboard, (c) => {
+  return page('playground', 'Playground', 'Playground', c, <Playground />);
 });
 
 /* ── dashboard writes ────────────────────────────────────────────────────── */
@@ -182,11 +187,64 @@ app.get('/logout', (c) => {
 
 /* ── the OpenAI-compatible surface ───────────────────────────────────────── */
 
+app.post('/api/playground/chat', requireDashboard, async (c) => {
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: { code: 'invalid_json', message: 'The request body is not valid JSON.' } }, 400);
+  }
+
+  if (!body || typeof body.model !== 'string' || !Array.isArray(body.messages)) {
+    return c.json(
+      { error: { code: 'invalid_request', message: 'Expected { model, messages }.' } },
+      400,
+    );
+  }
+
+  body.stream = false;
+
+  const result = await routeChat(body, c.req.raw.signal);
+  if (!result.ok) {
+    return c.json(
+      { error: { code: result.code, message: result.detail, attempts: result.attempts } },
+      result.status as any,
+    );
+  }
+
+  const { response, candidate, fallbacks, attempts } = result;
+  let payload: any;
+  let tokens = 0;
+  try {
+    payload = await response.clone().json();
+    tokens = Number(payload?.usage?.total_tokens ?? 0);
+  } catch {
+    return c.json(
+      { error: { code: 'bad_upstream', message: 'The upstream response was not valid JSON.' } },
+      502,
+    );
+  }
+
+  void recordUsage(candidate.providerId, tokens).catch(() => {});
+
+  return c.json({
+    ...payload,
+    router: {
+      provider: candidate.providerId,
+      family: candidate.family,
+      model_id: candidate.family,
+      fallbacks,
+      latency_ms: attempts.at(-1)?.ms ?? null,
+      attempts,
+    },
+  });
+});
+
 app.get('/healthz', (c) => c.json({ ok: true, demo: env.isDemo }));
 
 app.get('/v1/models', requireRouterKey, (c) => {
   const created = Math.floor(Date.now() / 1000);
-  const ids: string[] = ['auto', 'fast', 'smart', 'vision'];
+  const ids: string[] = ['auto', 'fast', 'smart', 'vision', 'tiptip'];
   for (const row of MODEL_ROWS) ids.push(row.family);
   for (const row of MODEL_ROWS) {
     for (const providerId of row.providers) ids.push(`${providerId}/${row.family}`);

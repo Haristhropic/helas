@@ -166,6 +166,172 @@
     });
   }
 
+  function initPlayground() {
+    var form = document.getElementById('playground-form');
+    if (!form) return;
+
+    var modelEl = document.getElementById('pg-model');
+    var systemEl = document.getElementById('pg-system');
+    var promptEl = document.getElementById('pg-prompt');
+    var submitEl = document.getElementById('pg-submit');
+    var clearEl = document.getElementById('pg-clear');
+    var statusEl = document.getElementById('pg-status');
+    var outputEl = document.getElementById('pg-output');
+    var errorEl = document.getElementById('pg-error');
+    var metaEl = document.getElementById('pg-meta');
+    var metaModel = document.getElementById('pg-meta-model');
+    var metaProvider = document.getElementById('pg-meta-provider');
+    var metaLatency = document.getElementById('pg-meta-latency');
+    var metaTokens = document.getElementById('pg-meta-tokens');
+    var metaFallbacks = document.getElementById('pg-meta-fallbacks');
+
+    function setStatus(text) {
+      if (statusEl) statusEl.textContent = text || '';
+    }
+
+    function setLoading(on) {
+      if (submitEl) {
+        submitEl.disabled = !!on;
+        submitEl.textContent = on ? 'Sending…' : 'Send';
+      }
+      setStatus(on ? 'Routing request…' : '');
+    }
+
+    function resetResult() {
+      if (outputEl) {
+        outputEl.innerHTML = '<span class="pg-placeholder">Response will appear here.</span>';
+      }
+      if (errorEl) {
+        errorEl.hidden = true;
+        errorEl.textContent = '';
+      }
+      if (metaEl) metaEl.hidden = true;
+    }
+
+    function showError(message, attempts) {
+      if (errorEl) {
+        var text = String(message || 'Request failed.');
+        if (attempts && attempts.length) {
+          try {
+            text += '\n\nAttempts:\n' + JSON.stringify(attempts, null, 2);
+          } catch (_) {}
+        }
+        errorEl.textContent = text;
+        errorEl.hidden = false;
+      }
+      if (outputEl) {
+        outputEl.innerHTML = '<span class="pg-placeholder">No successful response.</span>';
+      }
+      setStatus('Failed');
+    }
+
+    if (clearEl) {
+      clearEl.addEventListener('click', function () {
+        if (promptEl) promptEl.value = '';
+        if (systemEl) systemEl.value = '';
+        resetResult();
+        setStatus('');
+        if (promptEl) promptEl.focus();
+      });
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var prompt = promptEl ? String(promptEl.value || '').trim() : '';
+      if (!prompt) {
+        setStatus('Enter a prompt.');
+        if (promptEl) promptEl.focus();
+        return;
+      }
+
+      var messages = [];
+      var system = systemEl ? String(systemEl.value || '').trim() : '';
+      if (system) messages.push({ role: 'system', content: system });
+      messages.push({ role: 'user', content: prompt });
+
+      var body = {
+        model: modelEl ? modelEl.value : 'auto',
+        messages: messages,
+      };
+
+      setLoading(true);
+      resetResult();
+      var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+      fetch('/api/playground/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+        .then(function (res) {
+          return res
+            .json()
+            .catch(function () { return {}; })
+            .then(function (data) { return { res: res, data: data }; });
+        })
+        .then(function (result) {
+          var res = result.res;
+          var data = result.data || {};
+          var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          var clientMs = Math.round(now - t0);
+
+          if (!res.ok) {
+            var msg = (data && data.error && data.error.message) || ('Request failed (' + res.status + ')');
+            var attempts = data && data.error && data.error.attempts;
+            showError(msg, attempts);
+            return;
+          }
+
+          var text = '';
+          try {
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+              var content = data.choices[0].message.content;
+              text = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            } else {
+              text = JSON.stringify(data, null, 2);
+            }
+          } catch (_) {
+            text = String(data);
+          }
+
+          if (outputEl) outputEl.textContent = text || '(empty response)';
+
+          if (metaEl) {
+            var router = data.router || {};
+            if (metaModel) metaModel.textContent = router.family || router.model_id || body.model || '—';
+            if (metaProvider) metaProvider.textContent = router.provider ? ('via ' + router.provider) : 'provider unknown';
+            var latency = router.latency_ms != null ? router.latency_ms : clientMs;
+            if (metaLatency) metaLatency.textContent = latency + ' ms';
+            var usage = data.usage || {};
+            var total = usage.total_tokens != null
+              ? usage.total_tokens
+              : ((usage.prompt_tokens || 0) + (usage.completion_tokens || 0));
+            if (metaTokens) metaTokens.textContent = total ? (total + ' tokens') : '';
+            if (metaFallbacks) {
+              var fb = Number(router.fallbacks || 0);
+              if (fb > 0) {
+                metaFallbacks.hidden = false;
+                metaFallbacks.textContent = fb + ' fallback' + (fb === 1 ? '' : 's');
+                metaFallbacks.className = 'mark warn';
+              } else {
+                metaFallbacks.hidden = true;
+                metaFallbacks.textContent = '';
+              }
+            }
+            metaEl.hidden = false;
+          }
+
+          setStatus('Done');
+        })
+        .catch(function (err) {
+          showError(err && err.message ? err.message : 'Network error');
+        })
+        .then(function () {
+          setLoading(false);
+        });
+    });
+  }
+
   function start() {
     mountCharts();
     initMenu();
@@ -173,6 +339,7 @@
     initCopy();
     initPrefill();
     initTables();
+    initPlayground();
   }
 
   if (document.readyState === 'loading') {

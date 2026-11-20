@@ -47,6 +47,26 @@ const ALIASES: Array<{ name: string; chain: string[]; note: string }> = [
     chain: ['nvidia/gemma-4-31b-it', 'gemini/gemini-3.5-flash-lite'],
     note: 'Add zhipu/glm-4.6v-flash once a Z.ai key exists.',
   },
+  {
+    name: 'tiptip',
+    chain: [
+      'tiprouter/qwen3.8-flash',
+      'tiprouter/mimo-v2.6.flash',
+      'tiprouter/step-3.7-flash',
+      'tiprouter/qwen3.8-flash-uncen',
+      'tiprouter/deepseek-v4.1-flash-1017-uncen',
+      'tiprouter/nemotron-3.5-super',
+      'tiprouter/deepseek-v-4.1-flash-1017',
+      'tiprouter/deepseek-v4.1-flash-1017',
+      'tiprouter/gpt-6-luna',
+      'tiprouter/qwen-3.8-27b',
+      'tiprouter/dots-3-note-preview',
+      'tiprouter/deepseek-v4-flash-0731',
+      'tiprouter/solar-mini4',
+      'tiprouter/qwen4-max',
+    ],
+    note: '9router tiptip combo via TipRouter (openai-compatible).',
+  },
 ];
 
 async function main() {

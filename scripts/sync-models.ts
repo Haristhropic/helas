@@ -33,6 +33,7 @@ const ENV_KEYS: Record<string, string> = {
   mistral: 'MISTRAL_API_KEY',
   zhipu: 'ZHIPU_API_KEY',
   modelscope: 'MODELSCOPE_API_KEY',
+  tiprouter: 'TIPROUTER_API_KEY',
 };
 
 async function resolveKey(providerId: string): Promise<string | null> {

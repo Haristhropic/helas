@@ -147,6 +147,13 @@ export const PROVIDERS: ProviderDef[] = [
     adapter: 'openai',
     note: 'Seven free models, mostly Qwen and GLM variants.',
   },
+  {
+    id: 'tiprouter',
+    name: 'TipRouter',
+    baseUrl: 'https://tiprouter.my.id/v1',
+    adapter: 'openai',
+    note: 'OpenAI-compatible endpoint from 9router (tiprouter). Used by the "tiptip" alias/combo; requires TIPROUTER_API_KEY or a stored provider key.',
+  },
 ];
 
 export const PROVIDERS_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
