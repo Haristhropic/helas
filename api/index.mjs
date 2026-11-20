@@ -201,7 +201,7 @@ var providers = pgTable("providers", {
   name: text("name").notNull(),
   /** Base URL for the OpenAI-compatible surface. No trailing slash. */
   baseUrl: text("base_url").notNull(),
-  /** 'openai' | 'cloudflare' — see src/providers/adapters.ts */
+  /** 'openai' | 'cloudflare' â€” see src/providers/adapters.ts */
   adapter: text("adapter").notNull().default("openai"),
   /** Free-text note shown in the dashboard (signup URL, tier caveats). */
   note: text("note"),
@@ -1958,7 +1958,7 @@ var Usage = ({ metric }) => {
     format: "pct0",
     tickFormat: "pct0",
     height: 268,
-    // the providers past 80% — the same three the header counts — carry the hue
+    // the providers past 80% â€” the same three the header counts â€” carry the hue
     highlight: PROVIDER_USAGE.map((p, i) => burn(p) >= 0.8 ? i : -1).filter((i) => i >= 0),
     colour: "var(--chart-3)"
   } : {
@@ -2389,8 +2389,14 @@ var config = {
   runtime: "nodejs",
   maxDuration: 300
 };
-var index_default = handle(app_default);
+var handler = handle(app_default);
 export {
   config,
-  index_default as default
+  handler as GET,
+  handler as POST,
+  handler as PUT,
+  handler as PATCH,
+  handler as DELETE,
+  handler as OPTIONS,
+  handler as HEAD
 };
