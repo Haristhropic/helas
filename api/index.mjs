@@ -156,12 +156,12 @@ var init_keys = __esm({
   }
 });
 
-// api/index.ts
+// scripts/vercel-entry.ts
 import { handle } from "hono/vercel";
 
 // src/app.tsx
 import { Hono } from "hono";
-import { eq as eq4 } from "drizzle-orm";
+import { eq as eq5 } from "drizzle-orm";
 
 // src/auth.ts
 import { eq } from "drizzle-orm";
@@ -201,7 +201,7 @@ var providers = pgTable("providers", {
   name: text("name").notNull(),
   /** Base URL for the OpenAI-compatible surface. No trailing slash. */
   baseUrl: text("base_url").notNull(),
-  /** 'openai' | 'cloudflare' â€” see src/providers/adapters.ts */
+  /** 'openai' | 'cloudflare' — see src/providers/adapters.ts */
   adapter: text("adapter").notNull().default("openai"),
   /** Free-text note shown in the dashboard (signup URL, tier caveats). */
   note: text("note"),
@@ -334,8 +334,8 @@ function db() {
     throw new Error("DATABASE_URL is not set");
   }
   if (!cached) {
-    const sql = neon(env.databaseUrl);
-    cached = drizzle(sql, { schema: schema_exports });
+    const sql2 = neon(env.databaseUrl);
+    cached = drizzle(sql2, { schema: schema_exports });
   }
   return cached;
 }
@@ -564,6 +564,13 @@ var PROVIDERS = [
     baseUrl: "https://api-inference.modelscope.cn/v1",
     adapter: "openai",
     note: "Seven free models, mostly Qwen and GLM variants."
+  },
+  {
+    id: "tiprouter",
+    name: "TipRouter",
+    baseUrl: "https://tiprouter.my.id/v1",
+    adapter: "openai",
+    note: 'OpenAI-compatible endpoint from 9router (tiprouter). Used by the "tiptip" alias/combo; requires TIPROUTER_API_KEY or a stored provider key.'
   }
 ];
 var PROVIDERS_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
@@ -758,8 +765,8 @@ async function recordUsage(providerId, tokens, now = /* @__PURE__ */ new Date())
     }
     return;
   }
-  const sql = db();
-  await sql.insert(quotaBuckets).values([
+  const sql2 = db();
+  await sql2.insert(quotaBuckets).values([
     { providerId, modelId: "", bucketKind: "day", bucketStart: dayStart, requests: 1, tokens },
     { providerId, modelId: "", bucketKind: "minute", bucketStart: minuteStart, requests: 1, tokens }
   ]).onConflictDoUpdate({
@@ -770,8 +777,8 @@ async function recordUsage(providerId, tokens, now = /* @__PURE__ */ new Date())
       quotaBuckets.bucketStart
     ],
     set: {
-      requests: sql.$count(quotaBuckets.requests),
-      tokens: sql.$count(quotaBuckets.tokens)
+      requests: sql2.$count(quotaBuckets.requests),
+      tokens: sql2.$count(quotaBuckets.tokens)
     }
   });
 }
@@ -881,15 +888,6 @@ function utcStamp(when = NOW) {
   const day = when.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   return `${day} \xB7 ${when.toISOString().slice(11, 16)} UTC`;
 }
-function utcDateLong(when = NOW) {
-  return when.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC"
-  });
-}
 var WEIGHTED_P95 = Math.round(
   PROVIDER_USAGE.reduce((a, p) => a + p.p95 * p.used, 0) / Math.max(1, REQUESTS_TODAY)
 );
@@ -971,6 +969,10 @@ console.assert(
   "a chain node has negative remaining quota"
 );
 
+// src/data/zeroCostModels.ts
+var ZERO_COST_MODELS = [{ "provider": "cheapllm", "model": "deepseek-v4.1-flash-1017", "ctx": 1e6 }, { "provider": "tencent-coding-plan", "model": "hunyuan-t1", "ctx": 131072 }, { "provider": "tencent-coding-plan", "model": "tc-code-latest", "ctx": 131072 }, { "provider": "tencent-coding-plan", "model": "glm-5", "ctx": 202752 }, { "provider": "tencent-coding-plan", "model": "hunyuan-2.0-thinking", "ctx": 131072 }, { "provider": "tencent-coding-plan", "model": "minimax-m2.5", "ctx": 204800 }, { "provider": "tencent-coding-plan", "model": "hunyuan-2.0-instruct", "ctx": 131072 }, { "provider": "tencent-coding-plan", "model": "kimi-k2.5", "ctx": 262144 }, { "provider": "tencent-coding-plan", "model": "hunyuan-turbos", "ctx": 131072 }, { "provider": "ovhcloud", "model": "qwen3guard-gen-0.6b", "ctx": 32768 }, { "provider": "ovhcloud", "model": "qwen3guard-gen-8b", "ctx": 32768 }, { "provider": "kuae-cloud-coding-plan", "model": "GLM-4.7", "ctx": 204800 }, { "provider": "qiniu-ai", "model": "meituan/longcat-flash-lite", "ctx": 256e3 }, { "provider": "alibaba-coding-plan-cn", "model": "qwen3-max-2026-01-23", "ctx": 262144 }, { "provider": "alibaba-coding-plan-cn", "model": "glm-5", "ctx": 202752 }, { "provider": "alibaba-coding-plan-cn", "model": "qwen3.5-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan-cn", "model": "glm-4.7", "ctx": 202752 }, { "provider": "alibaba-coding-plan-cn", "model": "qwen3-coder-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan-cn", "model": "qwen3.6-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan-cn", "model": "qwen3.7-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan-cn", "model": "MiniMax-M2.5", "ctx": 196608 }, { "provider": "alibaba-coding-plan-cn", "model": "kimi-k2.5", "ctx": 262144 }, { "provider": "alibaba-coding-plan-cn", "model": "qwen3-coder-next", "ctx": 262144 }, { "provider": "kimi-code-plan-global", "model": "k3.1-pro", "ctx": 1048576 }, { "provider": "kimi-code-plan-global", "model": "k3.1-pro-highspeed", "ctx": 1048576 }, { "provider": "kimi-code-plan-global", "model": "kimi-for-coding-highspeed", "ctx": 262144 }, { "provider": "kimi-code-plan-global", "model": "k3", "ctx": 1048576 }, { "provider": "kimi-code-plan-global", "model": "k3-256k", "ctx": 262144 }, { "provider": "kimi-code-plan-global", "model": "kimi-for-coding", "ctx": 1048576 }, { "provider": "alibaba-token-plan", "model": "deepseek-v4-pro", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "happyhorse-1.1-i2v", "ctx": 0 }, { "provider": "alibaba-token-plan", "model": "happyhorse-1.1-r2v", "ctx": 0 }, { "provider": "alibaba-token-plan", "model": "qwen3.8-max", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "happyhorse-1.1-t2v", "ctx": 0 }, { "provider": "alibaba-token-plan", "model": "qwen3.6-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "qwen3.8-max-preview", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "qwen3.7-max", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "glm-5", "ctx": 202752 }, { "provider": "alibaba-token-plan", "model": "deepseek-v4.1-flash-1017", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "qwen-image-2.0-pro", "ctx": 8192 }, { "provider": "alibaba-token-plan", "model": "glm-5.3", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "deepseek-v4-flash-0731", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "wan2.7-image", "ctx": 8192 }, { "provider": "alibaba-token-plan", "model": "wan2.7-image-pro", "ctx": 8192 }, { "provider": "alibaba-token-plan", "model": "qwen3.6-plus", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "deepseek-v3.2", "ctx": 131072 }, { "provider": "alibaba-token-plan", "model": "deepseek-v4.1-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "qwen3.7-plus", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "glm-5.2", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "MiniMax-M2.5", "ctx": 196608 }, { "provider": "alibaba-token-plan", "model": "deepseek-v4-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "glm-5.1", "ctx": 202752 }, { "provider": "alibaba-token-plan", "model": "qwen3.8-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "kimi-k2.5", "ctx": 262144 }, { "provider": "alibaba-token-plan", "model": "qwen-image-2.0", "ctx": 8192 }, { "provider": "alibaba-token-plan", "model": "deepseek-v4-pro-0813", "ctx": 1e6 }, { "provider": "alibaba-token-plan", "model": "kimi-k2.7-code", "ctx": 262144 }, { "provider": "alibaba-token-plan", "model": "kimi-k2.6", "ctx": 262144 }, { "provider": "cortecs", "model": "qwen3guard-gen-0.6b", "ctx": 32e3 }, { "provider": "cortecs", "model": "qwen3guard-gen-8b", "ctx": 32e3 }, { "provider": "nova", "model": "nova-2-pro-v1", "ctx": 1e6 }, { "provider": "nova", "model": "nova-2-lite-v1", "ctx": 1e6 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.6-flash", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.6-pro", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.5", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.5-tts-voicedesign", "ctx": 8192 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.5-pro", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.5-tts-voiceclone", "ctx": 8192 }, { "provider": "xiaomi-token-plan-ams", "model": "mimo-v2.5-tts", "ctx": 8192 }, { "provider": "empiriolabs", "model": "glm-4-7-flash", "ctx": 202752 }, { "provider": "empiriolabs", "model": "glm-4-6v-flash", "ctx": 131072 }, { "provider": "empiriolabs", "model": "gemma-3-27b", "ctx": 131072 }, { "provider": "empiriolabs", "model": "glm-4-5-flash", "ctx": 131072 }, { "provider": "zhipuai-coding-plan", "model": "glm-5.3-highspeed", "ctx": 1e6 }, { "provider": "zhipuai-coding-plan", "model": "glm-5.3", "ctx": 1e6 }, { "provider": "zhipuai-coding-plan", "model": "glm-4.6v", "ctx": 128e3 }, { "provider": "zhipuai-coding-plan", "model": "glm-5.3-flash", "ctx": 1e6 }, { "provider": "qvac", "model": "qwen3.5-9b", "ctx": 32768 }, { "provider": "qvac", "model": "qwen3.5-2b", "ctx": 32768 }, { "provider": "qvac", "model": "qwen3.5-4b", "ctx": 32768 }, { "provider": "qvac", "model": "qwen3.6-27b", "ctx": 262144 }, { "provider": "qvac", "model": "qwen3.6-35b-a3b", "ctx": 262144 }, { "provider": "qvac", "model": "qwen3.5-0.8b", "ctx": 32768 }, { "provider": "qvac", "model": "gpt-oss-120b", "ctx": 131072 }, { "provider": "qvac", "model": "gpt-oss-20b", "ctx": 131072 }, { "provider": "qvac", "model": "gemma4-31b", "ctx": 262144 }, { "provider": "nan", "model": "gemma4", "ctx": 262144 }, { "provider": "nan", "model": "qwen3.6", "ctx": 262144 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M2.7-highspeed", "ctx": 204800 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M3.1-Flash", "ctx": 1e6 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M3", "ctx": 1e6 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M3.1-Flash-Preview", "ctx": 1e6 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M2.5-highspeed", "ctx": 204800 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M2", "ctx": 204800 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M2.7", "ctx": 204800 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M2.1", "ctx": 204800 }, { "provider": "minimax-cn-coding-plan", "model": "MiniMax-M2.5", "ctx": 204800 }, { "provider": "groq", "model": "allam-2-7b", "ctx": 4096 }, { "provider": "kilo", "model": "recursive/flint-v1.0", "ctx": 262144 }, { "provider": "kilo", "model": "recursive/flint-v1.0:free", "ctx": 262144 }, { "provider": "kilo", "model": "dots-studio/dots-3-note-preview:free", "ctx": 512e3 }, { "provider": "kilo", "model": "cohere/north-mini-code:free", "ctx": 256e3 }, { "provider": "kilo", "model": "inclusionai/ling-3.2-flash:free", "ctx": 1048576 }, { "provider": "kilo", "model": "stealth/glyph-cluster", "ctx": 256e3 }, { "provider": "kilo", "model": "liquid/lfm-3-1.7b:free", "ctx": 262144 }, { "provider": "kilo", "model": "reflection/beam-free", "ctx": 1048576 }, { "provider": "kilo", "model": "openrouter/pareto-code", "ctx": 2e5 }, { "provider": "kilo", "model": "openrouter/bodybuilder", "ctx": 128e3 }, { "provider": "kilo", "model": "openrouter/free", "ctx": 2e5 }, { "provider": "kilo", "model": "openrouter/auto", "ctx": 2e6 }, { "provider": "kilo", "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "ctx": 256e3 }, { "provider": "kilo", "model": "nvidia/nemotron-3.5-lightning:free", "ctx": 1e6 }, { "provider": "kilo", "model": "nvidia/nemotron-3.5-super-vl:free", "ctx": 1e6 }, { "provider": "kilo", "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "ctx": 1e6 }, { "provider": "kilo", "model": "kilo-auto/free", "ctx": 256e3 }, { "provider": "kilo", "model": "google/lyria-3-pro-preview", "ctx": 1048576 }, { "provider": "kilo", "model": "google/lyria-3-clip-preview", "ctx": 1048576 }, { "provider": "kilo", "model": "particle-ai/particle-1:free", "ctx": 1048576 }, { "provider": "kilo", "model": "humansand/ampersand-v0.1", "ctx": 1e6 }, { "provider": "kilo", "model": "baidu/ernie-5.5-flash-preview:free", "ctx": 1024e3 }, { "provider": "nano-gpt", "model": "auto-model", "ctx": 1e6 }, { "provider": "nano-gpt", "model": "nano-gpt-help", "ctx": 6e3 }, { "provider": "nano-gpt", "model": "kitani/clover-2", "ctx": 2e5 }, { "provider": "nano-gpt", "model": "kitani/clover-2:thinking", "ctx": 2e5 }, { "provider": "tencent-tokenhub", "model": "hy3", "ctx": 256e3 }, { "provider": "tencent-tokenhub", "model": "hy3-preview", "ctx": 256e3 }, { "provider": "cohere", "model": "north-small-translate-09-2026", "ctx": 32768 }, { "provider": "cohere", "model": "north-mini-code-1-0", "ctx": 256e3 }, { "provider": "alibaba-cn", "model": "deepseek-r1-distill-qwen-1-5b", "ctx": 32768 }, { "provider": "alibaba-cn", "model": "deepseek-r1-distill-llama-8b", "ctx": 32768 }, { "provider": "agnes", "model": "agnes-3.0-flash", "ctx": 512e3 }, { "provider": "agnes", "model": "agnes-2.0-flash", "ctx": 512e3 }, { "provider": "agnes", "model": "agnes-2.5-flash", "ctx": 512e3 }, { "provider": "zenmux", "model": "z-ai/glm-4.6v-flash-free", "ctx": 2e5 }, { "provider": "zenmux", "model": "z-ai/glm-4.7-flash-free", "ctx": 2e5 }, { "provider": "commandcode", "model": "inclusionai/ling-3.1-flash:free", "ctx": 262144 }, { "provider": "commandcode", "model": "stealth/glyph-cluster:free", "ctx": 256e3 }, { "provider": "commandcode", "model": "reflection/beam:free", "ctx": 1048576 }, { "provider": "commandcode", "model": "poolside/laguna-s-2.1-free", "ctx": 256e3 }, { "provider": "novita-ai", "model": "apodex/apodex-1.1-mini", "ctx": 262144 }, { "provider": "inferx", "model": "Qwen3.6-35B-A3B-FP8", "ctx": 262e3 }, { "provider": "inferx", "model": "Devstral-2-123B-Instruct-2512-int4-AutoRound", "ctx": 128e3 }, { "provider": "inferx", "model": "mimo-v25", "ctx": 1e6 }, { "provider": "inferx", "model": "Qwen3-Coder-Next-FP8-no-thinking", "ctx": 26e4 }, { "provider": "inferx", "model": "Qwen3.6-35B-A3B-fp8-no-thinking", "ctx": 262e3 }, { "provider": "inferx", "model": "gemma-4-31B-it-fp8", "ctx": 262144 }, { "provider": "inferx", "model": "deepseek-v4-flash", "ctx": 1e6 }, { "provider": "inferx", "model": "Agents-A1", "ctx": 262e3 }, { "provider": "inferx", "model": "Ornith-1.0-35B-FP8", "ctx": 262e3 }, { "provider": "inferx", "model": "Qwen3.6-27B-FP8", "ctx": 262144 }, { "provider": "inferx", "model": "Qwen3-Embedding-8B", "ctx": 32768 }, { "provider": "inferx", "model": "Qwen3-Coder-Next-FP8", "ctx": 256144 }, { "provider": "modelscope", "model": "ZhipuAI/GLM-4.6", "ctx": 202752 }, { "provider": "modelscope", "model": "ZhipuAI/GLM-4.5", "ctx": 131072 }, { "provider": "modelscope", "model": "Qwen/Qwen3-235B-A22B-Instruct-2507", "ctx": 262144 }, { "provider": "modelscope", "model": "Qwen/Qwen3-235B-A22B-Thinking-2507", "ctx": 262144 }, { "provider": "modelscope", "model": "Qwen/Qwen3-30B-A3B-Instruct-2507", "ctx": 262144 }, { "provider": "modelscope", "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct", "ctx": 262144 }, { "provider": "modelscope", "model": "Qwen/Qwen3-30B-A3B-Thinking-2507", "ctx": 262144 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M2.7-highspeed", "ctx": 204800 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M3.1-Flash", "ctx": 1e6 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M3", "ctx": 1e6 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M3.1-Flash-Preview", "ctx": 1e6 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M2.5-highspeed", "ctx": 204800 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M2", "ctx": 204800 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M2.7", "ctx": 204800 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M2.1", "ctx": 204800 }, { "provider": "minimax-coding-plan", "model": "MiniMax-M2.5", "ctx": 204800 }, { "provider": "meganova", "model": "mistralai/Mistral-Small-3.2-24B-Instruct-2506", "ctx": 32768 }, { "provider": "zai-coding-plan", "model": "glm-5.3-highspeed", "ctx": 1e6 }, { "provider": "zai-coding-plan", "model": "glm-4.7", "ctx": 204800 }, { "provider": "zai-coding-plan", "model": "glm-5.3", "ctx": 1e6 }, { "provider": "zai-coding-plan", "model": "glm-5-turbo", "ctx": 2e5 }, { "provider": "zai-coding-plan", "model": "glm-5.2-highspeed", "ctx": 1e6 }, { "provider": "zai-coding-plan", "model": "glm-5.2", "ctx": 1e6 }, { "provider": "zai-coding-plan", "model": "glm-5.3-flash", "ctx": 1e6 }, { "provider": "reflection", "model": "Beam-1.0-501B-A23B", "ctx": 1048576 }, { "provider": "zhipuai", "model": "glm-4.6v-flash", "ctx": 128e3 }, { "provider": "zhipuai", "model": "glm-4.7-flash", "ctx": 2e5 }, { "provider": "zhipuai", "model": "glm-4.5-flash", "ctx": 131072 }, { "provider": "poe", "model": "fireworks-ai/kimi-k2.5-fw", "ctx": 262144 }, { "provider": "poe", "model": "google/gemma-4-31b", "ctx": 262144 }, { "provider": "poe", "model": "openai/gpt-5.3-codex-spark", "ctx": 128e3 }, { "provider": "zeldoc", "model": "zdev", "ctx": 1e6 }, { "provider": "pendra", "model": "glm-4.7-flash", "ctx": 2e5 }, { "provider": "pendra", "model": "qwen3.6:27b", "ctx": 262144 }, { "provider": "pendra", "model": "llama3.3:70b", "ctx": 128e3 }, { "provider": "pendra", "model": "deepseek-v4-flash", "ctx": 1e6 }, { "provider": "pendra", "model": "qwen3-coder:30b", "ctx": 262144 }, { "provider": "pendra", "model": "gpt-oss:120b", "ctx": 131072 }, { "provider": "kenari", "model": "longcat-2-5:free", "ctx": 1e6 }, { "provider": "kenari", "model": "hy4-flash:free", "ctx": 1048576 }, { "provider": "kenari", "model": "muse-glimmer-30b:free", "ctx": 131072 }, { "provider": "kenari", "model": "beam-1-0:free", "ctx": 262144 }, { "provider": "kenari", "model": "particle-1:free", "ctx": 1048576 }, { "provider": "kenari", "model": "solar-mini4:free", "ctx": 524288 }, { "provider": "kenari", "model": "glm-4-6v-flash:free", "ctx": 128e3 }, { "provider": "kenari", "model": "qwen4-max:free", "ctx": 1e6 }, { "provider": "kenari", "model": "nemotron-3-ultra-550b-a55b:free", "ctx": 1e6 }, { "provider": "kenari", "model": "glm-4-7-flash:free", "ctx": 2e5 }, { "provider": "openrouter", "model": "recursive/flint-v1.0:free", "ctx": 262144 }, { "provider": "openrouter", "model": "dots-studio/dots-3-note-preview:free", "ctx": 512e3 }, { "provider": "openrouter", "model": "cohere/north-mini-code:free", "ctx": 256e3 }, { "provider": "openrouter", "model": "inclusionai/ling-3.2-flash:free", "ctx": 1048576 }, { "provider": "openrouter", "model": "liquid/lfm-3-1.7b:free", "ctx": 262144 }, { "provider": "openrouter", "model": "openrouter/free", "ctx": 2e5 }, { "provider": "openrouter", "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "ctx": 256e3 }, { "provider": "openrouter", "model": "nvidia/nemotron-3.5-lightning:free", "ctx": 1e6 }, { "provider": "openrouter", "model": "nvidia/nemotron-3.5-super-vl:free", "ctx": 1e6 }, { "provider": "openrouter", "model": "nvidia/nemotron-3-ultra-550b-a55b:free", "ctx": 1e6 }, { "provider": "openrouter", "model": "google/lyria-3-pro-preview", "ctx": 1048576 }, { "provider": "openrouter", "model": "google/gemma-4-26b-a4b-it:free", "ctx": 262144 }, { "provider": "openrouter", "model": "google/lyria-3-clip-preview", "ctx": 1048576 }, { "provider": "openrouter", "model": "google/gemma-4-31b-it:free", "ctx": 262144 }, { "provider": "openrouter", "model": "particle-ai/particle-1:free", "ctx": 1048576 }, { "provider": "openrouter", "model": "baidu/ernie-5.5-flash-preview:free", "ctx": 1024e3 }, { "provider": "aihubmix", "model": "coding-glm-5.1-free", "ctx": 2e5 }, { "provider": "aihubmix", "model": "coding-glm-5.2-free", "ctx": 1e6 }, { "provider": "aihubmix", "model": "xiaomi-mimo-v2.5-free", "ctx": 1048576 }, { "provider": "aihubmix", "model": "coding-minimax-m2.7-free", "ctx": 204800 }, { "provider": "aihubmix", "model": "nemotron-3.5-content-safety-free", "ctx": 128e3 }, { "provider": "aihubmix", "model": "coding-glm-5.3-flash-free", "ctx": 1e6 }, { "provider": "aihubmix", "model": "ling-3.0-flash-free", "ctx": 262144 }, { "provider": "aihubmix", "model": "gemma-4-26b-a4b-it-free", "ctx": 262144 }, { "provider": "aihubmix", "model": "xiaomi-mimo-v2.5-pro-free", "ctx": 1048576 }, { "provider": "aihubmix", "model": "nemotron-3-super-120b-a12b-free", "ctx": 262144 }, { "provider": "aihubmix", "model": "glm-4.7-flash-free", "ctx": 2e5 }, { "provider": "aihubmix", "model": "nemotron-3.5-lightning-free", "ctx": 262144 }, { "provider": "aihubmix", "model": "coding-glm-5.3-free", "ctx": 1e6 }, { "provider": "aihubmix", "model": "nemotron-3-nano-omni-30b-a3b-reasoning-free", "ctx": 256e3 }, { "provider": "aihubmix", "model": "gemma-4-31b-it-free", "ctx": 262144 }, { "provider": "aihubmix", "model": "nemotron-3-ultra-550b-a55b-free", "ctx": 1e6 }, { "provider": "aihubmix", "model": "qwen3.8-flash-free", "ctx": 1e6 }, { "provider": "aihubmix", "model": "qwen3.8-max-free", "ctx": 1e6 }, { "provider": "jad-ai", "model": "jad-code", "ctx": 256e3 }, { "provider": "jad-ai", "model": "jad-ai", "ctx": 65e3 }, { "provider": "jad-ai", "model": "jad-go", "ctx": 256e3 }, { "provider": "orcarouter", "model": "tencent/hy3-free", "ctx": 256e3 }, { "provider": "orcarouter", "model": "z-ai/glm-5.3-flash-free", "ctx": 1e6 }, { "provider": "orcarouter", "model": "deepseek/deepseek-v4-flash-free", "ctx": 1e6 }, { "provider": "orcarouter", "model": "orcarouter/free", "ctx": 65536 }, { "provider": "orcarouter", "model": "orcarouter/auto", "ctx": 128e3 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.6-flash", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.5-tts", "ctx": 8192 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.5-tts-voiceclone", "ctx": 8192 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.5-pro", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.5-tts-voicedesign", "ctx": 8192 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.5", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-cn", "model": "mimo-v2.6-pro", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.6-flash", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.6-pro", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.5", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.5-tts-voicedesign", "ctx": 8192 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.5-pro", "ctx": 1048576 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.5-tts-voiceclone", "ctx": 8192 }, { "provider": "xiaomi-token-plan-sgp", "model": "mimo-v2.5-tts", "ctx": 8192 }, { "provider": "mistral", "model": "labs-devstral-small-2512", "ctx": 256e3 }, { "provider": "mistral", "model": "labs-leanstral-1-5-1", "ctx": 262144 }, { "provider": "zai", "model": "glm-4.6v-flash", "ctx": 128e3 }, { "provider": "zai", "model": "glm-4.7-flash", "ctx": 2e5 }, { "provider": "zai", "model": "glm-4.5-flash", "ctx": 131072 }, { "provider": "vercel", "model": "recursive/flint-v1.0", "ctx": 262144 }, { "provider": "vercel", "model": "stealth/glyph-cluster", "ctx": 256e3 }, { "provider": "vercel", "model": "reflection/beam-free", "ctx": 1048576 }, { "provider": "vercel", "model": "reflection/beam", "ctx": 1048576 }, { "provider": "vercel", "model": "nvidia/nemotron-3.5-lightning-free", "ctx": 1e6 }, { "provider": "vercel", "model": "humansand/ampersand-v0.1", "ctx": 1e6 }, { "provider": "nvidia", "model": "minimaxai/minimax-m3.1-flash", "ctx": 262144 }, { "provider": "nvidia", "model": "deepseek-ai/deepseek-v4.1-flash", "ctx": 1e6 }, { "provider": "nvidia", "model": "stepfun-ai/step-5-preview", "ctx": 1048576 }, { "provider": "nvidia", "model": "z-ai/glm-5.3", "ctx": 1e6 }, { "provider": "nvidia", "model": "z-ai/glm-5.3-flash", "ctx": 1e6 }, { "provider": "nvidia", "model": "meta/llama-3.2-11b-vision-instruct", "ctx": 128e3 }, { "provider": "nvidia", "model": "meta/muse-glimmer-30b", "ctx": 131072 }, { "provider": "nvidia", "model": "meta/llama-3.2-90b-vision-instruct", "ctx": 128e3 }, { "provider": "nvidia", "model": "meta/llama-guard-4-12b", "ctx": 163840 }, { "provider": "nvidia", "model": "black-forest-labs/flux.1-dev", "ctx": 0 }, { "provider": "nvidia", "model": "black-forest-labs/flux_1-kontext-dev", "ctx": 0 }, { "provider": "nvidia", "model": "black-forest-labs/flux_2-klein-4b", "ctx": 0 }, { "provider": "nvidia", "model": "black-forest-labs/flux_1-schnell", "ctx": 0 }, { "provider": "nvidia", "model": "qwen/qwen-image", "ctx": 0 }, { "provider": "nvidia", "model": "qwen/qwen-image-edit", "ctx": 0 }, { "provider": "nvidia", "model": "mistralai/mistral-7b-instruct-v0.3", "ctx": 65536 }, { "provider": "nvidia", "model": "mistralai/mistral-medium-3-instruct", "ctx": 131072 }, { "provider": "nvidia", "model": "mistralai/magistral-small-2506", "ctx": 32768 }, { "provider": "nvidia", "model": "nvidia/llama-3.1-nemotron-70b-instruct", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/usdvalidate", "ctx": 0 }, { "provider": "nvidia", "model": "nvidia/nemotron-3-ultra-550b-a55b", "ctx": 1e6 }, { "provider": "nvidia", "model": "nvidia/magpie-tts-zeroshot", "ctx": 0 }, { "provider": "nvidia", "model": "nvidia/cosmos-reason2-8b", "ctx": 131072 }, { "provider": "nvidia", "model": "nvidia/nemotron-3.5-lightning-30b-a3b", "ctx": 262144 }, { "provider": "nvidia", "model": "nvidia/studiovoice", "ctx": 0 }, { "provider": "nvidia", "model": "nvidia/nemotron-voicechat", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/sparsedrive", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/nemotron-3.5-super-vl-120b-a12b", "ctx": 1048576 }, { "provider": "nvidia", "model": "nvidia/streampetr", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/cosmos-transfer2_5-2b", "ctx": 0 }, { "provider": "nvidia", "model": "nvidia/llama-3.1-nemotron-ultra-253b-v1", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/rerank-qa-mistral-4b", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/bevformer", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/llama-nemotron-embed-vl-1b-v2", "ctx": 8192 }, { "provider": "nvidia", "model": "nvidia/riva-translate-4b-instruct-v1.1", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/synthetic-video-detector", "ctx": 0 }, { "provider": "nvidia", "model": "nvidia/active-speaker-detection", "ctx": 0 }, { "provider": "nvidia", "model": "nvidia/llama-3.1-nemotron-safety-guard-8b-v3", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/llama-nemotron-rerank-vl-1b-v2", "ctx": 10240 }, { "provider": "nvidia", "model": "nvidia/nemotron-3.5-content-safety", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/usdcode", "ctx": 128e3 }, { "provider": "nvidia", "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "ctx": 256e3 }, { "provider": "nvidia", "model": "poolside/laguna-xs-2.1", "ctx": 262144 }, { "provider": "nvidia", "model": "google/gemma-3-12b-it", "ctx": 131072 }, { "provider": "nvidia", "model": "google/gemma-4-31b-it", "ctx": 256e3 }, { "provider": "nvidia", "model": "google/gemma-3-4b-it", "ctx": 131072 }, { "provider": "nvidia", "model": "google/google-paligemma", "ctx": 128e3 }, { "provider": "nvidia", "model": "google/diffusiongemma-26b-a4b-it", "ctx": 25e4 }, { "provider": "nvidia", "model": "moonshotai/kimi-k3", "ctx": 1048576 }, { "provider": "nvidia", "model": "moonshotai/kimi-k2.6", "ctx": 262144 }, { "provider": "nvidia", "model": "openai/whisper-large-v3", "ctx": 448 }, { "provider": "nvidia", "model": "openai/gpt-oss-20b", "ctx": 131072 }, { "provider": "infomaniak", "model": "mini_lm_l12_v2", "ctx": 128 }, { "provider": "amd", "model": "GLM-5.3-Flash", "ctx": 262144 }, { "provider": "amd", "model": "DeepSeek-V4-Flash-Vision-Exp", "ctx": 1e6 }, { "provider": "amd", "model": "Qwen3.8-27B", "ctx": 262144 }, { "provider": "amd", "model": "Gemma-4-31B-IT", "ctx": 262144 }, { "provider": "amd", "model": "MiniCPM5-2B", "ctx": 131072 }, { "provider": "amd", "model": "DeepSeek-V4-Flash", "ctx": 1048576 }, { "provider": "amd", "model": "MiniCPM-V-4.7-35B-A3B", "ctx": 262144 }, { "provider": "amd", "model": "Qwen3.8-Flash-Next", "ctx": 262144 }, { "provider": "amd", "model": "DeepSeek-V4.1-Flash", "ctx": 1048576 }, { "provider": "amd", "model": "MiMo-V2.6-Flash", "ctx": 1048576 }, { "provider": "amd", "model": "MiniCPM-V-4.7-1B", "ctx": 262144 }, { "provider": "lmstudio", "model": "qwen/qwen3-30b-a3b-2507", "ctx": 262144 }, { "provider": "lmstudio", "model": "qwen/qwen3-coder-30b", "ctx": 262144 }, { "provider": "lmstudio", "model": "openai/gpt-oss-20b", "ctx": 131072 }, { "provider": "poolside", "model": "poolside/laguna-m.1", "ctx": 262144 }, { "provider": "poolside", "model": "poolside/laguna-s-2.1", "ctx": 1048576 }, { "provider": "poolside", "model": "poolside/laguna-xs-2.1", "ctx": 262144 }, { "provider": "regolo-ai", "model": "deepseek-ocr-2", "ctx": 4e3 }, { "provider": "regolo-ai", "model": "brick-v1-beta", "ctx": 1e5 }, { "provider": "regolo-ai", "model": "faster-whisper-large-v3", "ctx": 448 }, { "provider": "opencode-go", "model": "hy4-flash-free", "ctx": 1048576 }, { "provider": "opencode-go", "model": "iceman-contributor-free", "ctx": 262144 }, { "provider": "opencode-go", "model": "minimax-m3.1-flash-free", "ctx": 1e6 }, { "provider": "opencode-go", "model": "crouton-alpha-free", "ctx": 1048576 }, { "provider": "opencode-go", "model": "beam-free", "ctx": 1048576 }, { "provider": "opencode-go", "model": "cat-jam-free", "ctx": 1048576 }, { "provider": "opencode-go", "model": "longcat-2.5-free", "ctx": 1e6 }, { "provider": "opencode-go", "model": "step-5-preview-free", "ctx": 1e6 }, { "provider": "opencode-go", "model": "longcat-2.5-preview-free", "ctx": 1e6 }, { "provider": "huggingface", "model": "zai-org/GLM-4.7-Flash", "ctx": 2e5 }, { "provider": "merge-gateway", "model": "nvidia/nemotron-3.5-lightning-30b-a3b", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v4-pro", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "happyhorse-1.1-i2v", "ctx": 0 }, { "provider": "alibaba-token-plan-cn", "model": "happyhorse-1.1-r2v", "ctx": 0 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.8-max", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "happyhorse-1.1-t2v", "ctx": 0 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.6-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.8-max-preview", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.7-max", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "glm-5", "ctx": 202752 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v4.1-flash-1017", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "qwen-image-2.0-pro", "ctx": 8192 }, { "provider": "alibaba-token-plan-cn", "model": "glm-5.3", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v4-flash-0731", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "wan2.7-image", "ctx": 8192 }, { "provider": "alibaba-token-plan-cn", "model": "wan2.7-image-pro", "ctx": 8192 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.6-plus", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v3.2", "ctx": 131072 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v4.1-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.7-plus", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "glm-5.2", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "MiniMax-M2.5", "ctx": 196608 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v4-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "glm-5.1", "ctx": 202752 }, { "provider": "alibaba-token-plan-cn", "model": "qwen3.8-flash", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "kimi-k2.5", "ctx": 262144 }, { "provider": "alibaba-token-plan-cn", "model": "qwen-image-2.0", "ctx": 8192 }, { "provider": "alibaba-token-plan-cn", "model": "deepseek-v4-pro-0813", "ctx": 1e6 }, { "provider": "alibaba-token-plan-cn", "model": "kimi-k2.7-code", "ctx": 262144 }, { "provider": "alibaba-token-plan-cn", "model": "kimi-k2.6", "ctx": 262144 }, { "provider": "sensenova", "model": "deepseek-v4-pro", "ctx": 1048576 }, { "provider": "sensenova", "model": "deepseek-flash", "ctx": 1048576 }, { "provider": "sensenova", "model": "kimi-k3", "ctx": 1048576 }, { "provider": "sensenova", "model": "sensenova-6.8-flash-lite", "ctx": 262144 }, { "provider": "sensenova", "model": "glm-5.2", "ctx": 1e6 }, { "provider": "sensenova", "model": "deepseek-v4-flash", "ctx": 1e6 }, { "provider": "edenai", "model": "cohere/command-a-translate-08-2025", "ctx": 8992 }, { "provider": "edenai", "model": "cohere/command-a-vision-07-2025", "ctx": 128e3 }, { "provider": "hetzner", "model": "Qwen3.8-27B", "ctx": 262144 }, { "provider": "hetzner", "model": "Qwen/Qwen3.6-35B-A3B-FP8", "ctx": 262144 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-4", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-sonnet-4-5", "ctx": 2e5 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-5", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-6-sol", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-6-luna", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-opus-4-6", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-opus-4-7", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-gpt-6-sol", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-4-nano", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-sonnet-4-6", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-sonnet-5-5", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-1", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-fable-5-1", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-haiku-5-5", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-6-terra", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-gpt-6-luna", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-opus-4-8", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-3-codex", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-opus-5-5", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-4-mini", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-codex", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-opus-5", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-2-codex", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-mini", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-gpt-5-2", "ctx": 4e5 }, { "provider": "gitlab", "model": "duo-chat-fable-5", "ctx": 1e6 }, { "provider": "gitlab", "model": "duo-chat-opus-4-5", "ctx": 2e5 }, { "provider": "gitlab", "model": "duo-chat-gpt-6-astra", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-haiku-4-5", "ctx": 2e5 }, { "provider": "gitlab", "model": "duo-chat-gpt-6-1-sol", "ctx": 105e4 }, { "provider": "gitlab", "model": "duo-chat-sonnet-5", "ctx": 1e6 }, { "provider": "bothub", "model": "gemma-4-31b-it:free", "ctx": 262144 }, { "provider": "bothub", "model": "nemotron-3-ultra-550b-a55b:free", "ctx": 1e6 }, { "provider": "unorouter", "model": "glm-4.5-flash:free", "ctx": 131072 }, { "provider": "unorouter", "model": "gpt-5.5:free", "ctx": 105e4 }, { "provider": "unorouter", "model": "deepseek-v4-pro:free", "ctx": 1e6 }, { "provider": "unorouter", "model": "qwen3.5-397b-a17b:free", "ctx": 262144 }, { "provider": "unorouter", "model": "minimax-m2.7:free", "ctx": 204800 }, { "provider": "unorouter", "model": "step-3.7-flash:free", "ctx": 256e3 }, { "provider": "unorouter", "model": "glm-5.2:free", "ctx": 1e6 }, { "provider": "unorouter", "model": "deepseek-v4-flash:free", "ctx": 1e6 }, { "provider": "unorouter", "model": "gemma-4-31b-it:free", "ctx": 262144 }, { "provider": "unorouter", "model": "gpt-5.4:free", "ctx": 105e4 }, { "provider": "unorouter", "model": "nemotron-3-ultra-550b-a55b:free", "ctx": 1e6 }, { "provider": "alibaba-coding-plan", "model": "qwen3-max-2026-01-23", "ctx": 262144 }, { "provider": "alibaba-coding-plan", "model": "glm-5", "ctx": 202752 }, { "provider": "alibaba-coding-plan", "model": "qwen3.5-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan", "model": "glm-4.7", "ctx": 202752 }, { "provider": "alibaba-coding-plan", "model": "qwen3-coder-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan", "model": "qwen3.6-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan", "model": "qwen3.7-plus", "ctx": 1e6 }, { "provider": "alibaba-coding-plan", "model": "MiniMax-M2.5", "ctx": 196608 }, { "provider": "alibaba-coding-plan", "model": "kimi-k2.5", "ctx": 262144 }, { "provider": "alibaba-coding-plan", "model": "qwen3-coder-next", "ctx": 262144 }, { "provider": "requesty", "model": "nemotron-3-ultra-550b-a55b", "ctx": 1048576 }, { "provider": "requesty", "model": "muse-glimmer-30b", "ctx": 131072 }, { "provider": "requesty", "model": "leanstral-1-5@eu", "ctx": 262144 }, { "provider": "requesty", "model": "nemotron-3.5-lightning-30b-a3b", "ctx": 1048576 }, { "provider": "requesty", "model": "gemma-4-31b-it", "ctx": 262144 }, { "provider": "requesty", "model": "leanstral-1-5", "ctx": 262144 }, { "provider": "requesty", "model": "nemotron-3-nano-omni-30b-a3b-reasoning", "ctx": 131072 }, { "provider": "umans-ai-coding-plan", "model": "umans-kimi-k3.1-pro", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-kimi-k3", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-coder", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-flash", "ctx": 262144 }, { "provider": "umans-ai-coding-plan", "model": "umans-deepseek-v4-flash-0731", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-glm-5.3-flash", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-deepseek-v4.1-flash-1017", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-qwen3.6-35b-a3b", "ctx": 262144 }, { "provider": "umans-ai-coding-plan", "model": "umans-deepseek-v4.1-flash", "ctx": 1048576 }, { "provider": "umans-ai-coding-plan", "model": "umans-glm-5.3", "ctx": 1048576 }, { "provider": "iteracompute", "model": "qwen/qwen3.8-27b", "ctx": 131072 }, { "provider": "google", "model": "lyria-3-pro-preview", "ctx": 1048576 }, { "provider": "google", "model": "gemma-4-26b-a4b-it", "ctx": 262144 }, { "provider": "google", "model": "lyria-3-clip-preview", "ctx": 1048576 }, { "provider": "google", "model": "gemma-4-31b-it", "ctx": 262144 }, { "provider": "siliconflow-cn", "model": "deepseek-ai/DeepSeek-OCR", "ctx": 8192 }, { "provider": "siliconflow-cn", "model": "PaddlePaddle/PaddleOCR-VL-1.5", "ctx": 16384 }, { "provider": "siliconflow-cn", "model": "Qwen/Qwen2.5-7B-Instruct", "ctx": 33e3 }, { "provider": "siliconflow-cn", "model": "Qwen/Qwen3-8B", "ctx": 131e3 }, { "provider": "siliconflow-cn", "model": "Qwen/Qwen3.5-4B", "ctx": 262144 }, { "provider": "volcengine-coding-plan", "model": "kimi-k2.8-preview", "ctx": 1048576 }, { "provider": "volcengine-coding-plan", "model": "deepseek-v4-pro", "ctx": 1e6 }, { "provider": "volcengine-coding-plan", "model": "minimax-m3", "ctx": 1048576 }, { "provider": "volcengine-coding-plan", "model": "doubao-seed-2.0-mini", "ctx": 256e3 }, { "provider": "volcengine-coding-plan", "model": "glm-5.3", "ctx": 1e6 }, { "provider": "volcengine-coding-plan", "model": "deepseek-v4.1-flash-economy", "ctx": 1e6 }, { "provider": "volcengine-coding-plan", "model": "kimi-k3", "ctx": 1048576 }, { "provider": "volcengine-coding-plan", "model": "doubao-seed-2.1-turbo", "ctx": 256e3 }, { "provider": "volcengine-coding-plan", "model": "doubao-seed-2.1-pro", "ctx": 1024e3 }, { "provider": "volcengine-coding-plan", "model": "doubao-seed-2.0-lite", "ctx": 256e3 }, { "provider": "volcengine-coding-plan", "model": "doubao-seed-2.1-lite", "ctx": 1024e3 }, { "provider": "volcengine-coding-plan", "model": "deepseek-v4.1-flash", "ctx": 1e6 }, { "provider": "volcengine-coding-plan", "model": "doubao-seed-evolving", "ctx": 1024e3 }, { "provider": "volcengine-coding-plan", "model": "deepseek-v4-flash", "ctx": 1e6 }, { "provider": "volcengine-coding-plan", "model": "kimi-k3.1-pro", "ctx": 1048576 }, { "provider": "volcengine-coding-plan", "model": "glm-5.3-flash", "ctx": 1e6 }, { "provider": "volcengine-coding-plan", "model": "kimi-k2.7-code", "ctx": 262144 }, { "provider": "atomic-chat", "model": "gemma-4-E4B-it-MLX-4bit", "ctx": 32768 }, { "provider": "atomic-chat", "model": "Qwen3_5-9B-Q4_K_M", "ctx": 32768 }, { "provider": "atomic-chat", "model": "Meta-Llama-3_1-8B-Instruct-GGUF", "ctx": 131072 }, { "provider": "atomic-chat", "model": "Qwen3_5-9B-MLX-4bit", "ctx": 32768 }, { "provider": "atomic-chat", "model": "gemma-4-E4B-it-IQ4_XS", "ctx": 32768 }, { "provider": "llmgateway", "model": "gpt-transcribe", "ctx": 0 }, { "provider": "llmgateway", "model": "gpt-live-transcribe", "ctx": 0 }, { "provider": "llmgateway", "model": "auto", "ctx": 128e3 }, { "provider": "llmgateway", "model": "custom", "ctx": 128e3 }, { "provider": "llmgateway-providers", "model": "azure/gpt-transcribe", "ctx": 0 }, { "provider": "llmgateway-providers", "model": "azure/gpt-live-transcribe", "ctx": 0 }, { "provider": "llmgateway-providers", "model": "openai/gpt-transcribe", "ctx": 0 }, { "provider": "llmgateway-providers", "model": "openai/gpt-live-transcribe", "ctx": 0 }, { "provider": "llmtr", "model": "poolside/laguna-xs-2.1", "ctx": 262144 }, { "provider": "inferall", "model": "z-ai/glm-5.3", "ctx": 1e6 }, { "provider": "inferall", "model": "z-ai/glm-5.3-flash", "ctx": 1e6 }, { "provider": "inferall", "model": "nvidia/nemotron-3-ultra-550b-a55b", "ctx": 1e6 }, { "provider": "inferall", "model": "nvidia/nemotron-3.5-lightning-30b-a3b", "ctx": 262144 }, { "provider": "inferall", "model": "nvidia/nemotron-3.5-super-vl-120b-a12b", "ctx": 1048576 }, { "provider": "inferall", "model": "openai/gpt-oss-20b", "ctx": 131072 }, { "provider": "scnet-token-plan", "model": "GLM-5.3-Flash", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "MiniMax-M3", "ctx": 1048576 }, { "provider": "scnet-token-plan", "model": "DeepSeek-V4-Flash", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "Qwen3.8-Flash", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "Kimi-K2.5", "ctx": 262144 }, { "provider": "scnet-token-plan", "model": "GLM-5.1", "ctx": 2e5 }, { "provider": "scnet-token-plan", "model": "DeepSeek-V4.1-Flash", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "MiniMax-M2.7", "ctx": 204800 }, { "provider": "scnet-token-plan", "model": "Kimi-K3", "ctx": 1048576 }, { "provider": "scnet-token-plan", "model": "Kimi-K2.7-Code", "ctx": 262144 }, { "provider": "scnet-token-plan", "model": "MiniMax-M2.5", "ctx": 204800 }, { "provider": "scnet-token-plan", "model": "Kimi-K2.6", "ctx": 262144 }, { "provider": "scnet-token-plan", "model": "DeepSeek-V4-Pro-0813", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "GLM-5", "ctx": 204800 }, { "provider": "scnet-token-plan", "model": "DeepSeek-V4-Pro", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "GLM-5.2", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "Qwen3.8-Max", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "GLM-5.3", "ctx": 1e6 }, { "provider": "scnet-token-plan", "model": "DeepSeek-V4-Flash-0731", "ctx": 1e6 }, { "provider": "kimi-code-plan-cn", "model": "k3.1-pro", "ctx": 1048576 }, { "provider": "kimi-code-plan-cn", "model": "k3.1-pro-highspeed", "ctx": 1048576 }, { "provider": "kimi-code-plan-cn", "model": "kimi-for-coding-highspeed", "ctx": 262144 }, { "provider": "kimi-code-plan-cn", "model": "k3", "ctx": 1048576 }, { "provider": "kimi-code-plan-cn", "model": "k3-256k", "ctx": 262144 }, { "provider": "kimi-code-plan-cn", "model": "kimi-for-coding", "ctx": 1048576 }, { "provider": "tencent-token-plan", "model": "hy3", "ctx": 256e3 }, { "provider": "tokenrouter", "model": "z-ai/glm-5.3-free", "ctx": 1e6 }, { "provider": "opencode", "model": "deepseek-v4.1-flash-free", "ctx": 2e5 }, { "provider": "opencode", "model": "mimo-v2-omni-free", "ctx": 262144 }, { "provider": "opencode", "model": "tidepool-alpha-free", "ctx": 1048576 }, { "provider": "opencode", "model": "nemotron-3-super-free", "ctx": 204800 }, { "provider": "opencode", "model": "mimo-v2.6-flash-free", "ctx": 2e5 }, { "provider": "opencode", "model": "hy3-free", "ctx": 19e4 }, { "provider": "opencode", "model": "exo-free", "ctx": 1048576 }, { "provider": "opencode", "model": "big-pickle", "ctx": 2e5 }, { "provider": "opencode", "model": "ling-2.6-flash-free", "ctx": 262100 }, { "provider": "opencode", "model": "fledge-alpha-free", "ctx": 1048576 }, { "provider": "opencode", "model": "glm-5.3-flash-free", "ctx": 2e5 }, { "provider": "opencode", "model": "hy4-flash-free", "ctx": 1048576 }, { "provider": "opencode", "model": "ring-2.6-1t-free", "ctx": 262e3 }, { "provider": "opencode", "model": "longcat-2.0-free", "ctx": 1e6 }, { "provider": "opencode", "model": "trinity-large-preview-free", "ctx": 131072 }, { "provider": "opencode", "model": "ling-3.0-tiny-free", "ctx": 262144 }, { "provider": "opencode", "model": "flint-40b-free", "ctx": 262144 }, { "provider": "opencode", "model": "hy3-preview-free", "ctx": 256e3 }, { "provider": "opencode", "model": "space-bunny-free", "ctx": 1048576 }, { "provider": "opencode", "model": "minimax-m3.1-flash-free", "ctx": 1e6 }, { "provider": "opencode", "model": "mimo-v2.5-free", "ctx": 2e5 }, { "provider": "opencode", "model": "glm-5-free", "ctx": 204800 }, { "provider": "opencode", "model": "north-mini-code-free", "ctx": 256e3 }, { "provider": "opencode", "model": "grok-code", "ctx": 256e3 }, { "provider": "opencode", "model": "laguna-s-2.1-free", "ctx": 256e3 }, { "provider": "opencode", "model": "minimax-m3-free", "ctx": 2e5 }, { "provider": "opencode", "model": "crouton-alpha-free", "ctx": 1048576 }, { "provider": "opencode", "model": "beam-free", "ctx": 1048576 }, { "provider": "opencode", "model": "mimo-v2-pro-free", "ctx": 1048576 }, { "provider": "opencode", "model": "ling-3.1-flash-free", "ctx": 262144 }, { "provider": "opencode", "model": "minimax-m2.1-free", "ctx": 204800 }, { "provider": "opencode", "model": "ling-3.0-flash-free", "ctx": 262144 }, { "provider": "opencode", "model": "qwen3.6-plus-free", "ctx": 262144 }, { "provider": "opencode", "model": "x-preview-f-free", "ctx": 1e6 }, { "provider": "opencode", "model": "cat-jam-free", "ctx": 1048576 }, { "provider": "opencode", "model": "iceman-free", "ctx": 262144 }, { "provider": "opencode", "model": "longcat-2.5-free", "ctx": 1e6 }, { "provider": "opencode", "model": "inkling-2-small-free", "ctx": 1048576 }, { "provider": "opencode", "model": "nemotron-3.5-super-vl-free", "ctx": 1048576 }, { "provider": "opencode", "model": "muse-spark-1.2-contributor-free", "ctx": 1048576 }, { "provider": "opencode", "model": "pulse-alpha-free", "ctx": 1048576 }, { "provider": "opencode", "model": "nemotron-3.5-lightning-free", "ctx": 262144 }, { "provider": "opencode", "model": "glm-4.7-free", "ctx": 204800 }, { "provider": "opencode", "model": "minimax-m2.5-free", "ctx": 204800 }, { "provider": "opencode", "model": "step-5-preview-free", "ctx": 1e6 }, { "provider": "opencode", "model": "mimo-v2-flash-free", "ctx": 262144 }, { "provider": "opencode", "model": "muse-spark-1.3-contributor-free", "ctx": 1048576 }, { "provider": "opencode", "model": "ling-3.0-flash-fin-free", "ctx": 262144 }, { "provider": "opencode", "model": "ll-alpha-free", "ctx": 262144 }, { "provider": "opencode", "model": "kimi-k2.5-free", "ctx": 262144 }, { "provider": "opencode", "model": "deepseek-v4-flash-free", "ctx": 2e5 }, { "provider": "opencode", "model": "longcat-2.5-preview-free", "ctx": 1e6 }, { "provider": "opencode", "model": "nemotron-3-ultra-free", "ctx": 1e6 }, { "provider": "lynkr", "model": "lynkr-auto", "ctx": 128e3 }];
+var ZERO_MIX_CHAIN = ZERO_COST_MODELS.map((m) => `${m.provider}/${m.model}`);
+
 // src/router/core.ts
 var ENV_KEY_NAMES = {
   openrouter: "OPENROUTER_API_KEY",
@@ -986,7 +988,8 @@ var ENV_KEY_NAMES = {
   novita: "NOVITA_API_KEY",
   mistral: "MISTRAL_API_KEY",
   zhipu: "ZHIPU_API_KEY",
-  modelscope: "MODELSCOPE_API_KEY"
+  modelscope: "MODELSCOPE_API_KEY",
+  tiprouter: "TIPROUTER_API_KEY"
 };
 async function pickKey(providerId) {
   if (PROVIDERS_BY_ID.get(providerId)?.keyless) return null;
@@ -1008,9 +1011,26 @@ async function pickKey(providerId) {
 }
 var ALIAS_CHAINS = {
   auto: AUTO_CHAIN.map((n) => `${n.provider}/${n.family}`),
+  all: ZERO_MIX_CHAIN,
   fast: ["groq/llama-3.3-70b", "cerebras/gpt-oss-120b", "nvidia/gemma-4-31b-it"],
   smart: ["nvidia/glm-5.3", "chutes/kimi-k3.1-pro", "huggingface/qwen3.8-27b"],
-  vision: ["nvidia/gemma-4-31b-it", "gemini/gemini-3.5-flash-lite"]
+  vision: ["nvidia/gemma-4-31b-it", "gemini/gemini-3.5-flash-lite"],
+  tiptip: [
+    "tiprouter/qwen3.8-flash",
+    "tiprouter/mimo-v2.6.flash",
+    "tiprouter/step-3.7-flash",
+    "tiprouter/qwen3.8-flash-uncen",
+    "tiprouter/deepseek-v4.1-flash-1017-uncen",
+    "tiprouter/nemotron-3.5-super",
+    "tiprouter/deepseek-v-4.1-flash-1017",
+    "tiprouter/deepseek-v4.1-flash-1017",
+    "tiprouter/gpt-6-luna",
+    "tiprouter/qwen-3.8-27b",
+    "tiprouter/dots-3-note-preview",
+    "tiprouter/deepseek-v4-flash-0731",
+    "tiprouter/solar-mini4",
+    "tiprouter/qwen4-max"
+  ]
 };
 function fromDemoTable(requested) {
   const alias = ALIAS_CHAINS[requested];
@@ -1252,6 +1272,229 @@ async function syncCatalog(resolveKey) {
   return results;
 }
 
+// src/data/index.ts
+import { and as and3, count, desc, eq as eq4, gte as gte2, inArray as inArray2, sql } from "drizzle-orm";
+init_env();
+function bucketStart2(kind, now = /* @__PURE__ */ new Date()) {
+  const d = new Date(now);
+  if (kind === "minute") {
+    d.setUTCSeconds(0, 0);
+    return d;
+  }
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+function toNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+function demo() {
+  return {
+    live: false,
+    usage: PROVIDER_USAGE,
+    off: PROVIDERS_OFF,
+    models: MODEL_ROWS,
+    requests: RECENT_REQUESTS,
+    chain: AUTO_CHAIN,
+    requestsToday: REQUESTS_TODAY,
+    tokensToday: TOKENS_TODAY,
+    capacityToday: CAPACITY_TODAY,
+    rateLimitedToday: RATE_LIMITED_TODAY,
+    providersLive: PROVIDERS_LIVE,
+    currentHour: CURRENT_HOUR,
+    hourly: HOURLY,
+    hourlyTokens: HOURLY_TOKENS,
+    hourLabels: HOUR_LABELS,
+    weightedP95: WEIGHTED_P95,
+    modelFamilies: MODEL_FAMILIES,
+    modelEndpoints: MODEL_ENDPOINTS,
+    modelServed: MODEL_SERVED,
+    modelLongest: MODEL_LONGEST,
+    chainTotal: CHAIN_TOTAL,
+    chainLive: CHAIN_LIVE,
+    nearCap: NEAR_CAP
+  };
+}
+async function loadDashboard() {
+  if (env.isDemo) return demo();
+  const dayStart = bucketStart2("day");
+  const now = /* @__PURE__ */ new Date();
+  const currentHour = now.getUTCHours();
+  const providerRows = await db().select().from(providers).where(eq4(providers.enabled, true));
+  const providerIds = providerRows.map((row) => row.id);
+  const [
+    counterRows,
+    limitRows,
+    keyRows,
+    healthRows,
+    logRows,
+    modelRows,
+    quotaToday,
+    rateLimitedRows,
+    aliasRows
+  ] = await Promise.all([
+    db().select({
+      providerId: quotaBuckets.providerId,
+      requests: sql`sum(${quotaBuckets.requests})`,
+      tokens: sql`sum(${quotaBuckets.tokens})`
+    }).from(quotaBuckets).where(and3(inArray2(quotaBuckets.providerId, providerIds), eq4(quotaBuckets.modelId, ""), gte2(quotaBuckets.bucketStart, dayStart))).groupBy(quotaBuckets.providerId),
+    db().select({ providerId: quotaLimits.providerId, maxRequests: quotaLimits.maxRequests }).from(quotaLimits).where(and3(inArray2(quotaLimits.providerId, providerIds), eq4(quotaLimits.modelId, ""), eq4(quotaLimits.bucketKind, "day"))),
+    db().select({ providerId: providerKeys.providerId, keys: count(), keyHint: providerKeys.keyHint, lastUsedAt: providerKeys.lastUsedAt }).from(providerKeys).where(and3(inArray2(providerKeys.providerId, providerIds), eq4(providerKeys.status, "active"))).groupBy(providerKeys.providerId, providerKeys.keyHint, providerKeys.lastUsedAt),
+    db().select({ modelId: modelHealth.modelId, p95Ms: sql`avg(${modelHealth.p95Ms})` }).from(modelHealth).where(gte2(modelHealth.windowStart, dayStart)).groupBy(modelHealth.modelId),
+    db().select({
+      id: requestLog.id,
+      ts: requestLog.ts,
+      alias: requestLog.alias,
+      modelId: requestLog.modelId,
+      status: requestLog.status,
+      latencyMs: requestLog.latencyMs,
+      promptTokens: requestLog.promptTokens,
+      completionTokens: requestLog.completionTokens,
+      fallbacks: requestLog.fallbacks
+    }).from(requestLog).where(gte2(requestLog.ts, dayStart)).orderBy(desc(requestLog.ts)).limit(12),
+    db().select({
+      family: models.family,
+      providerId: models.providerId,
+      contextK: models.contextLen,
+      tools: models.supportsTools,
+      vision: models.supportsVision,
+      served: sql`coalesce((
+          select sum(${quotaBuckets.requests})
+          from ${quotaBuckets}
+          where ${quotaBuckets.providerId} = ${models.providerId}
+            and ${quotaBuckets.modelId} = ${models.family}
+            and ${quotaBuckets.bucketKind} = 'day'
+            and ${quotaBuckets.bucketStart} >= ${dayStart}
+        ), 0)`
+    }).from(models).where(eq4(models.enabled, true)),
+    db().select({
+      hour: sql`extract(hour from ${quotaBuckets.bucketStart})`,
+      requests: sql`sum(${quotaBuckets.requests})`,
+      tokens: sql`sum(${quotaBuckets.tokens})`
+    }).from(quotaBuckets).where(gte2(quotaBuckets.bucketStart, dayStart)).groupBy(sql`extract(hour from ${quotaBuckets.bucketStart})`),
+    db().select({ value: sql`count(*)` }).from(requestLog).where(and3(gte2(requestLog.ts, dayStart), eq4(requestLog.status, 429))),
+    db().select().from(aliases).where(eq4(aliases.name, "auto")).limit(1)
+  ]);
+  const counterMap = new Map(counterRows.map((row) => [row.providerId, { requests: toNumber(row.requests), tokens: toNumber(row.tokens) }]));
+  const limitMap = new Map(limitRows.map((row) => [row.providerId, row.maxRequests ?? null]));
+  const keyMap = /* @__PURE__ */ new Map();
+  for (const row of keyRows) {
+    const age = row.lastUsedAt ? `${Math.max(1, Math.round((Date.now() - new Date(row.lastUsedAt).getTime()) / 864e5))}d ago` : "today";
+    keyMap.set(row.providerId, { keys: toNumber(row.keys), keyHint: row.keyHint ?? null, age });
+  }
+  const p95Map = /* @__PURE__ */ new Map();
+  for (const row of healthRows) {
+    const providerId = row.modelId.split("/")[0];
+    if (!p95Map.has(providerId)) p95Map.set(providerId, toNumber(row.p95Ms));
+  }
+  const logStats = /* @__PURE__ */ new Map();
+  for (const row of logRows) {
+    const providerId = row.alias ?? row.modelId?.split("/")[0] ?? "router";
+    const current = logStats.get(providerId) ?? { requests: 0, rateLimited: 0 };
+    current.requests += 1;
+    if (row.status === 429) current.rateLimited += 1;
+    logStats.set(providerId, current);
+  }
+  const usage = providerRows.map((provider) => {
+    const counter = counterMap.get(provider.id) ?? { requests: 0, tokens: 0 };
+    const limit = limitMap.get(provider.id) ?? null;
+    const keyInfo = keyMap.get(provider.id) ?? { keys: 0, keyHint: null, age: "no key" };
+    const stats = logStats.get(provider.id) ?? { requests: 0, rateLimited: 0 };
+    const used = counter.requests;
+    const status = stats.rateLimited > 0 ? "degraded" : limit !== null && limit > 0 && used / limit >= 0.8 ? "warn" : keyInfo.keys === 0 && !provider.note?.toLowerCase().includes("keyless") ? "off" : "ok";
+    return {
+      id: provider.id,
+      name: provider.name,
+      limit: limit ?? 0,
+      used,
+      tokens: counter.tokens,
+      keys: keyInfo.keys,
+      keyHint: keyInfo.keyHint,
+      keyAge: keyInfo.age,
+      models: 0,
+      p95: Math.round(p95Map.get(provider.id) ?? 0),
+      rateLimited: stats.rateLimited,
+      status,
+      note: provider.note ?? ""
+    };
+  });
+  const familyMap = /* @__PURE__ */ new Map();
+  for (const row of modelRows) {
+    const current = familyMap.get(row.family) ?? { providers: /* @__PURE__ */ new Set(), contextK: 0, tools: false, vision: false, served: 0 };
+    current.providers.add(row.providerId);
+    current.served += toNumber(row.served);
+    current.tools = current.tools || row.tools;
+    current.vision = current.vision || row.vision;
+    if ((row.contextK ?? 0) > current.contextK) current.contextK = row.contextK ?? 0;
+    familyMap.set(row.family, current);
+  }
+  const liveModels = Array.from(familyMap.entries()).map(([family, data]) => ({
+    family,
+    providers: Array.from(data.providers),
+    contextK: data.contextK,
+    tools: data.tools,
+    vision: data.vision,
+    served: data.served
+  })).sort((a, b) => b.served - a.served);
+  const requests = logRows.map((row, index2) => ({
+    id: row.id,
+    minutesAgo: Math.max(0, Math.round((now.getTime() - new Date(row.ts).getTime()) / 6e4)),
+    family: row.alias ?? row.modelId?.split("/").slice(1).join("/") ?? "unknown",
+    provider: row.modelId?.split("/")[0] ?? row.alias ?? "router",
+    status: row.status,
+    ms: row.latencyMs ?? 0,
+    tokens: toNumber(row.promptTokens) + toNumber(row.completionTokens),
+    fallbacks: row.fallbacks ?? 0
+  }));
+  const hourly = new Array(24).fill(0);
+  const hourlyTokens = new Array(24).fill(0);
+  for (const row of quotaToday) {
+    const hour = Math.min(23, Math.max(0, Math.round(toNumber(row.hour))));
+    hourly[hour] = toNumber(row.requests);
+    hourlyTokens[hour] = toNumber(row.tokens);
+  }
+  const requestsToday = counterRows.reduce((a, r) => a + toNumber(r.requests), 0);
+  const tokensToday = counterRows.reduce((a, r) => a + toNumber(r.tokens), 0);
+  const capacityToday = limitRows.reduce((a, r) => a + (r.maxRequests ?? 0), 0);
+  const rateLimitedToday = toNumber(rateLimitedRows[0]?.value);
+  const weightedP95 = p95Map.size > 0 ? Math.round(Array.from(p95Map.values()).reduce((a, b) => a + b, 0) / p95Map.size) : 0;
+  const chainSource = aliasRows[0]?.chain ?? [];
+  const chainCounters = new Map(counterRows.map((row) => [row.providerId, toNumber(row.requests)]));
+  const chain = chainSource.map((entry) => {
+    const [providerId, family] = entry.split("/");
+    const limit = limitMap.get(providerId) ?? null;
+    const counter = chainCounters.get(providerId) ?? 0;
+    const left = limit !== null ? Math.max(0, limit - counter) : counter;
+    const state = limit !== null && counter >= limit ? "exhausted" : limit !== null && left <= 20 ? "cooling" : "live";
+    return { provider: providerId, family, left, state };
+  });
+  const nearCap = [...usage].sort((a, b) => (a.limit === 0 ? 0 : a.used / a.limit) < (b.limit === 0 ? 0 : b.used / b.limit) ? 0 : -1).slice(0, 6);
+  return {
+    live: true,
+    usage,
+    off: PROVIDERS_OFF,
+    models: liveModels,
+    requests,
+    chain,
+    requestsToday,
+    tokensToday,
+    capacityToday,
+    rateLimitedToday,
+    providersLive: providerRows.length,
+    currentHour,
+    hourly,
+    hourlyTokens,
+    hourLabels: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`),
+    weightedP95,
+    modelFamilies: liveModels.length,
+    modelEndpoints: liveModels.reduce((a, m) => a + m.providers.length, 0),
+    modelServed: liveModels.reduce((a, m) => a + m.served, 0),
+    modelLongest: liveModels.reduce((a, m) => Math.max(a, m.contextK), 0),
+    chainTotal: chain.reduce((a, n) => a + n.left, 0),
+    chainLive: chain.filter((n) => n.state === "live").length,
+    nearCap
+  };
+}
+
 // src/ui/layout.tsx
 import { raw } from "hono/html";
 import { Fragment, jsx, jsxs } from "hono/jsx/jsx-runtime";
@@ -1259,12 +1502,16 @@ var ICONS = {
   overview: '<path d="M3 6h18M3 12h12M3 18h6"/>',
   models: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
   providers: '<circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="18" r="2.4"/><circle cx="19" cy="18" r="2.4"/><path d="M12 7.4v3.8M12 11.2L6.6 15.9M12 11.2l5.4 4.7"/>',
-  usage: '<path d="M3 17l5-6 4 3 6-8"/>'
+  playground: '<path d="M8 5l10 7-10 7V5z"/>',
+  usage: '<path d="M3 17l5-6 4 3 6-8"/>',
+  endpoint: '<path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M8 12h8M8 16h5"/>'
 };
 var NAV = [
   { id: "overview", href: "/", label: "Overview" },
   { id: "models", href: "/models", label: "Models" },
   { id: "providers", href: "/providers", label: "Providers" },
+  { id: "playground", href: "/playground", label: "Playground" },
+  { id: "endpoint", href: "/endpoint", label: "Endpoint" },
   { id: "usage", href: "/usage", label: "Usage" }
 ];
 var Icon = ({ id }) => /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", children: raw(ICONS[id]) });
@@ -1278,6 +1525,8 @@ var Layout = (props) => /* @__PURE__ */ jsxs(Fragment, { children: [
         props.title,
         " \xB7 Router"
       ] }),
+      /* @__PURE__ */ jsx("link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }),
+      /* @__PURE__ */ jsx("meta", { name: "theme-color", content: "#1d5fbf" }),
       /* @__PURE__ */ jsx("meta", { name: "color-scheme", content: "light" }),
       /* @__PURE__ */ jsx("link", { rel: "preconnect", href: "https://fonts.googleapis.com" }),
       /* @__PURE__ */ jsx("link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "anonymous" }),
@@ -1294,12 +1543,7 @@ var Layout = (props) => /* @__PURE__ */ jsxs(Fragment, { children: [
       /* @__PURE__ */ jsxs("div", { class: "shell", children: [
         /* @__PURE__ */ jsxs("aside", { class: "sidebar", id: "app-nav", children: [
           /* @__PURE__ */ jsxs("div", { class: "brand", children: [
-            /* @__PURE__ */ jsxs("svg", { class: "brand-mark", viewBox: "0 0 22 22", "aria-hidden": "true", children: [
-              /* @__PURE__ */ jsx("rect", { x: "1", y: "13", width: "4", height: "8", fill: "currentColor" }),
-              /* @__PURE__ */ jsx("rect", { x: "7", y: "8", width: "4", height: "13", fill: "currentColor" }),
-              /* @__PURE__ */ jsx("rect", { x: "13", y: "3", width: "4", height: "18", fill: "currentColor" }),
-              /* @__PURE__ */ jsx("rect", { x: "19", y: "10", width: "2", height: "11", fill: "#c3c8d0" })
-            ] }),
+            /* @__PURE__ */ jsx("img", { class: "brand-mark", src: "/logo.svg", alt: "", width: "22", height: "22" }),
             /* @__PURE__ */ jsx("span", { class: "brand-name", children: "Router" })
           ] }),
           /* @__PURE__ */ jsx("span", { class: "brand-scope", children: "personal free-tier gateway" }),
@@ -1400,33 +1644,36 @@ var LANE_LABEL = {
   huggingface: "hf",
   pollinations: "poll"
 };
-var Overview = ({ metric }) => {
+var Overview = ({ data, metric }) => {
   const isTokens = metric === "tokens";
-  const values = isTokens ? HOURLY_TOKENS : HOURLY;
-  const total = isTokens ? TOKENS_TODAY : REQUESTS_TODAY;
+  const values = isTokens ? data.hourlyTokens : data.hourly;
+  const total = isTokens ? data.tokensToday : data.requestsToday;
   const peak = Math.max(...values);
-  const usedShare = REQUESTS_TODAY / CAPACITY_TODAY;
+  const usedShare = data.capacityToday > 0 ? data.requestsToday / data.capacityToday : 0;
   return /* @__PURE__ */ jsxs3("div", { class: "stack", children: [
     /* @__PURE__ */ jsxs3("div", { class: "page-head", children: [
       /* @__PURE__ */ jsxs3("div", { children: [
         /* @__PURE__ */ jsx3("h1", { children: "Free-tier router" }),
         /* @__PURE__ */ jsxs3("p", { class: "sub", children: [
           "One OpenAI-compatible endpoint in front of ",
-          PROVIDERS_LIVE,
+          data.providersLive,
           " free providers.",
           " ",
-          thousands(REQUESTS_TODAY),
+          thousands(data.requestsToday),
           " requests served today out of",
           " ",
-          thousands(CAPACITY_TODAY),
+          thousands(data.capacityToday),
           " available."
         ] })
       ] }),
-      /* @__PURE__ */ jsx3("div", { class: "head-actions", children: /* @__PURE__ */ jsx3("span", { class: "stamp", children: utcStamp() }) })
+      /* @__PURE__ */ jsx3("div", { class: "head-actions", children: /* @__PURE__ */ jsxs3("span", { class: data.live ? "stamp" : "stamp demo", children: [
+        utcStamp(),
+        data.live ? "" : " \xB7 demo data"
+      ] }) })
     ] }),
     /* @__PURE__ */ jsx3(Section, { title: "Auto chain", aside: 'what model: "auto" tries, in order', action: { href: "/providers", label: "Edit order" }, children: /* @__PURE__ */ jsxs3("div", { class: "card", children: [
-      /* @__PURE__ */ jsx3("div", { class: "lane", role: "list", "aria-label": "Fallback chain, segments sized by remaining quota today", children: AUTO_CHAIN.map((node) => {
-        const share = node.left / CHAIN_TOTAL;
+      /* @__PURE__ */ jsx3("div", { class: "lane", role: "list", "aria-label": "Fallback chain, segments sized by remaining quota today", children: data.chain.map((node) => {
+        const share = data.chainTotal > 0 ? node.left / data.chainTotal : 0;
         const wide = share >= 0.05;
         return /* @__PURE__ */ jsx3(
           "div",
@@ -1434,7 +1681,7 @@ var Overview = ({ metric }) => {
             class: `lane-seg ${node.state}${wide ? " wide" : ""}`,
             role: "listitem",
             "data-name": LANE_LABEL[node.provider] ?? node.provider,
-            style: `--grow: ${Math.max(node.left, 26)}; --share: ${share.toFixed(4)}`,
+            style: `--grow: ${Math.max(node.left, 1)}; --share: ${share.toFixed(4)}`,
             title: `${providerName(node.provider)} \xB7 ${node.family} \xB7 ${thousands(node.left)} left today`,
             children: wide ? /* @__PURE__ */ jsxs3(Fragment2, { children: [
               /* @__PURE__ */ jsx3("span", { class: "seg-name", children: LANE_LABEL[node.provider] ?? node.provider }),
@@ -1445,23 +1692,22 @@ var Overview = ({ metric }) => {
       }) }),
       /* @__PURE__ */ jsxs3("div", { class: "lane-meta", children: [
         /* @__PURE__ */ jsxs3("span", { class: "lead", children: [
-          thousands(CHAIN_TOTAL),
+          thousands(data.chainTotal),
           " requests left across ",
-          AUTO_CHAIN.length,
+          data.chain.length,
           " hops"
         ] }),
-        /* @__PURE__ */ jsxs3("span", { children: [
+        /* @__PURE__ */ jsx3("span", { children: data.chain.length > 0 ? /* @__PURE__ */ jsxs3(Fragment2, { children: [
           "next up: ",
-          AUTO_CHAIN[0].provider,
+          data.chain[0].provider,
           "/",
-          AUTO_CHAIN[0].family,
-          " \xB7",
-          " ",
-          thousands(AUTO_CHAIN[0].left),
+          data.chain[0].family,
+          " \xB7 ",
+          thousands(data.chain[0].left),
           " left"
-        ] })
+        ] }) : "no chain configured" })
       ] }),
-      /* @__PURE__ */ jsx3("p", { class: "lane-order", children: AUTO_CHAIN.map((node, i) => /* @__PURE__ */ jsxs3(Fragment2, { children: [
+      /* @__PURE__ */ jsx3("p", { class: "lane-order", children: data.chain.map((node, i) => /* @__PURE__ */ jsxs3(Fragment2, { children: [
         i > 0 ? /* @__PURE__ */ jsx3("span", { class: "arrow", children: " \u2192 " }) : null,
         /* @__PURE__ */ jsx3("span", { class: node.state === "exhausted" ? "out" : void 0, children: node.provider })
       ] })) }),
@@ -1484,19 +1730,19 @@ var Overview = ({ metric }) => {
       /* @__PURE__ */ jsxs3("div", { class: "kpi-strip", children: [
         /* @__PURE__ */ jsxs3("a", { class: "kpi", href: "/?m=requests", "aria-current": !isTokens ? "true" : void 0, children: [
           /* @__PURE__ */ jsx3("span", { class: "kpi-label", children: "Requests served" }),
-          /* @__PURE__ */ jsx3("span", { class: "kpi-value", children: thousands(REQUESTS_TODAY) }),
+          /* @__PURE__ */ jsx3("span", { class: "kpi-value", children: thousands(data.requestsToday) }),
           /* @__PURE__ */ jsxs3("span", { class: "kpi-note", children: [
             "of ",
-            thousands(CAPACITY_TODAY),
+            thousands(data.capacityToday),
             " available"
           ] })
         ] }),
         /* @__PURE__ */ jsxs3("a", { class: "kpi", href: "/?m=tokens", "aria-current": isTokens ? "true" : void 0, children: [
           /* @__PURE__ */ jsx3("span", { class: "kpi-label", children: "Tokens" }),
-          /* @__PURE__ */ jsx3("span", { class: "kpi-value", children: compact(TOKENS_TODAY) }),
+          /* @__PURE__ */ jsx3("span", { class: "kpi-value", children: compact(data.tokensToday) }),
           /* @__PURE__ */ jsxs3("span", { class: "kpi-note", children: [
             "across ",
-            PROVIDERS_LIVE,
+            data.providersLive,
             " providers"
           ] })
         ] }),
@@ -1510,18 +1756,18 @@ var Overview = ({ metric }) => {
         ] }),
         /* @__PURE__ */ jsxs3("div", { class: "kpi", children: [
           /* @__PURE__ */ jsx3("span", { class: "kpi-label", children: "Chain remaining" }),
-          /* @__PURE__ */ jsx3("span", { class: "kpi-value", children: thousands(CHAIN_TOTAL) }),
+          /* @__PURE__ */ jsx3("span", { class: "kpi-value", children: thousands(data.chainTotal) }),
           /* @__PURE__ */ jsxs3("span", { class: "kpi-note", children: [
-            CHAIN_LIVE,
+            data.chainLive,
             " of ",
-            AUTO_CHAIN.length,
+            data.chain.length,
             " hops live"
           ] })
         ] }),
         /* @__PURE__ */ jsxs3("div", { class: "kpi", children: [
           /* @__PURE__ */ jsx3("span", { class: "kpi-label", children: "p95 latency" }),
           /* @__PURE__ */ jsxs3("span", { class: "kpi-value", children: [
-            thousands(WEIGHTED_P95),
+            thousands(data.weightedP95),
             /* @__PURE__ */ jsx3("span", { class: "unit", children: "ms" })
           ] }),
           /* @__PURE__ */ jsx3("span", { class: "kpi-note", children: "weighted by requests" })
@@ -1541,9 +1787,9 @@ var Overview = ({ metric }) => {
             {
               config: {
                 kind: "bars",
-                labels: HOUR_LABELS,
+                labels: data.hourLabels,
                 values,
-                highlight: CURRENT_HOUR,
+                highlight: data.currentHour,
                 format: isTokens ? "compact" : "int",
                 height: 224,
                 colour: "var(--chart-3)"
@@ -1553,7 +1799,7 @@ var Overview = ({ metric }) => {
           /* @__PURE__ */ jsxs3("div", { class: "chart-foot", children: [
             /* @__PURE__ */ jsxs3("span", { children: [
               "The blue bar is the hour in progress. Nothing after ",
-              HOUR_LABELS[CURRENT_HOUR],
+              data.hourLabels[data.currentHour],
               " has happened yet."
             ] }),
             /* @__PURE__ */ jsxs3("span", { children: [
@@ -1567,11 +1813,12 @@ var Overview = ({ metric }) => {
           /* @__PURE__ */ jsxs3("div", { class: "chart-note", children: [
             /* @__PURE__ */ jsx3("span", { class: "what", children: "Closest to the cap" }),
             /* @__PURE__ */ jsxs3("span", { class: "total", children: [
-              "6 of ",
-              PROVIDERS_LIVE
+              data.nearCap.length,
+              " of ",
+              data.providersLive
             ] })
           ] }),
-          /* @__PURE__ */ jsx3("div", { class: "rank", children: NEAR_CAP.map((p) => {
+          /* @__PURE__ */ jsx3("div", { class: "rank", children: data.nearCap.map((p) => {
             const pct = burn(p);
             const tone = pct >= 0.95 ? " is-hot" : pct > 0.8 ? " is-warm" : "";
             return /* @__PURE__ */ jsxs3("div", { class: "rank-row", children: [
@@ -1591,7 +1838,7 @@ var Overview = ({ metric }) => {
         ] })
       ] })
     ] }) }),
-    /* @__PURE__ */ jsx3(Section, { title: "Recent requests", aside: "last 12 minutes", action: { href: "/usage", label: "See all" }, children: /* @__PURE__ */ jsx3("div", { class: "card", children: /* @__PURE__ */ jsxs3("table", { class: "table", children: [
+    /* @__PURE__ */ jsx3(Section, { title: "Recent requests", aside: data.live ? "last requests this UTC day" : "last 12 minutes", action: { href: "/usage", label: "See all" }, children: /* @__PURE__ */ jsx3("div", { class: "card", children: /* @__PURE__ */ jsxs3("table", { class: "table", children: [
       /* @__PURE__ */ jsx3("thead", { children: /* @__PURE__ */ jsxs3("tr", { children: [
         /* @__PURE__ */ jsx3("th", { children: "Request" }),
         /* @__PURE__ */ jsx3("th", { children: "Model" }),
@@ -1601,7 +1848,11 @@ var Overview = ({ metric }) => {
         /* @__PURE__ */ jsx3("th", { class: "r", children: "Tokens" }),
         /* @__PURE__ */ jsx3("th", { class: "r", children: "Fallbacks" })
       ] }) }),
-      /* @__PURE__ */ jsx3("tbody", { children: RECENT_REQUESTS.map((r) => /* @__PURE__ */ jsxs3("tr", { children: [
+      /* @__PURE__ */ jsx3("tbody", { children: data.requests.length === 0 ? /* @__PURE__ */ jsx3("tr", { children: /* @__PURE__ */ jsxs3("td", { colspan: 7, class: "empty", children: [
+        "No requests today yet",
+        data.live ? "" : " (sample data)",
+        "."
+      ] }) }) : data.requests.map((r) => /* @__PURE__ */ jsxs3("tr", { children: [
         /* @__PURE__ */ jsxs3("td", { class: "id", children: [
           /* @__PURE__ */ jsxs3("span", { children: [
             r.id.slice(0, 8),
@@ -1621,7 +1872,7 @@ var Overview = ({ metric }) => {
         /* @__PURE__ */ jsx3("td", { class: "r num", children: r.fallbacks === 0 ? /* @__PURE__ */ jsx3("span", { class: "zero", children: "0" }) : r.fallbacks })
       ] })) })
     ] }) }) }),
-    /* @__PURE__ */ jsx3("p", { class: "footnote", children: "Sample figures. Keys are sealed with AES-256-GCM before they are written; the router walks the chain until one provider answers with headers, which is the last moment a fallback is still possible." })
+    /* @__PURE__ */ jsx3("p", { class: "footnote", children: data.live ? "Live from Neon. Keys are sealed with AES-256-GCM before they are written; the router walks the chain until one provider answers with headers, which is the last moment a fallback is still possible." : "Demo dataset \u2014 set DATABASE_URL to render live traffic." })
   ] });
 };
 
@@ -1640,25 +1891,24 @@ function keep(row, filter) {
   return true;
 }
 var byServed = (a, b) => b.served - a.served;
-var Models = ({ filter }) => {
-  const rows = MODEL_ROWS.filter((r) => keep(r, filter)).sort(byServed);
+var Models = ({ data, filter }) => {
+  const rows = data.models.filter((r) => keep(r, filter)).sort(byServed);
   const served = rows.reduce((a, r) => a + r.served, 0);
   const endpoints = rows.reduce((a, r) => a + r.providers.length, 0);
-  const remainder = REQUESTS_TODAY - MODEL_SERVED;
   return /* @__PURE__ */ jsxs4("div", { class: "stack", children: [
     /* @__PURE__ */ jsxs4("div", { class: "page-head", children: [
       /* @__PURE__ */ jsxs4("div", { children: [
         /* @__PURE__ */ jsx4("h1", { children: "Models" }),
         /* @__PURE__ */ jsxs4("p", { class: "sub", children: [
-          MODEL_FAMILIES,
+          data.modelFamilies,
           " families across ",
-          MODEL_ENDPOINTS,
+          data.modelEndpoints,
           " free endpoints. Ask for a bare family name and the router fans out across every provider that serves it, most headroom first."
         ] })
       ] }),
       /* @__PURE__ */ jsx4("div", { class: "head-actions", children: /* @__PURE__ */ jsxs4("span", { class: "stamp", children: [
         "longest context ",
-        MODEL_LONGEST.toLocaleString("en-US"),
+        data.modelLongest.toLocaleString("en-US"),
         "K"
       ] }) })
     ] }),
@@ -1668,7 +1918,7 @@ var Models = ({ filter }) => {
         /* @__PURE__ */ jsxs4("span", { class: "count", "data-count-wrap": true, children: [
           /* @__PURE__ */ jsx4("strong", { "data-count": true, children: rows.length }),
           " of ",
-          MODEL_FAMILIES,
+          data.modelFamilies,
           " families"
         ] })
       ] }),
@@ -1720,36 +1970,26 @@ var Models = ({ filter }) => {
         ] })
       ] }) }),
       /* @__PURE__ */ jsxs4("p", { class: "footnote", children: [
-        thousands(remainder),
+        thousands(data.requestsToday - served),
         " of today's ",
-        thousands(REQUESTS_TODAY),
+        thousands(data.requestsToday),
         " requests went to families below this list."
       ] })
     ] }),
     /* @__PURE__ */ jsxs4("section", { children: [
       /* @__PURE__ */ jsx4("div", { class: "section-head", children: /* @__PURE__ */ jsxs4("h2", { children: [
         "Ask for one",
-        /* @__PURE__ */ jsx4("span", { class: "aside", children: "any OpenAI client works; the model name is the only variable" })
+        /* @__PURE__ */ jsx4("span", { class: "aside", children: "only variable" })
       ] }) }),
       /* @__PURE__ */ jsxs4("div", { class: "card", children: [
         /* @__PURE__ */ jsx4("pre", { class: "code", children: /* @__PURE__ */ jsx4("code", { children: `curl "$ROUTER_URL/v1/chat/completions" \\
-  -H "authorization: Bearer $ROUTER_KEY" \\
-  -H "content-type: application/json" \\
-  -d '{"model":"gpt-oss-120b","stream":true,
-       "messages":[{"role":"user","content":"hi"}]}'` }) }),
+   -H "authorization: Bearer $ROUTER_KEY" \\
+   -H "content-type: application/json" \\
+   -d '{"model":"gpt-oss-120b","stream":true,
+        "messages":[{"role":"user","content":"hi"}]}'` }) }),
         /* @__PURE__ */ jsxs4("p", { class: "code-note", children: [
-          /* @__PURE__ */ jsx4("span", { class: "mono", children: "auto" }),
-          ", ",
-          /* @__PURE__ */ jsx4("span", { class: "mono", children: "fast" }),
-          ",",
-          " ",
-          /* @__PURE__ */ jsx4("span", { class: "mono", children: "smart" }),
-          " and ",
-          /* @__PURE__ */ jsx4("span", { class: "mono", children: "vision" }),
-          " are aliases: each one is an ordered chain, not a single model. Prefix a provider to pin the request \u2014",
-          " ",
-          /* @__PURE__ */ jsx4("span", { class: "mono", children: "nvidia/glm-5.3" }),
-          " skips the chain entirely."
+          /* @__PURE__ */ jsx4("span", { class: "mono", children: "model" }),
+          " is the only variable."
         ] })
       ] })
     ] })
@@ -1757,18 +1997,11 @@ var Models = ({ filter }) => {
 };
 
 // src/ui/pages/providers.tsx
-import { raw as raw3 } from "hono/html";
 import { jsx as jsx5, jsxs as jsxs5 } from "hono/jsx/jsx-runtime";
-var COPY_ICON2 = '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H6a3 3 0 0 0-3 3v6.5A2.5 2.5 0 0 0 5.5 15"/>';
-var ALIASES = [
-  ["auto", "8 hops, most headroom first"],
-  ["fast", "groq, then cerebras, then nvidia"],
-  ["smart", "glm-5.3, then kimi-k3.1-pro"],
-  ["vision", "gemma-4-31b-it, then gemini flash lite"]
-];
 var Providers = (props) => {
-  const nearCap = PROVIDER_USAGE.filter((p) => burn(p) > 0.8);
-  const keyed = PROVIDER_USAGE.filter((p) => p.keys > 0).length;
+  const usage = props.data.usage;
+  const nearCap = usage.filter((p) => burn(p) > 0.8);
+  const keyed = usage.filter((p) => p.keys > 0).length;
   return /* @__PURE__ */ jsxs5("div", { class: "stack settings", children: [
     /* @__PURE__ */ jsxs5("div", { class: "page-head", children: [
       /* @__PURE__ */ jsxs5("div", { children: [
@@ -1778,7 +2011,12 @@ var Providers = (props) => {
           " keyed providers and one keyless endpoint. Keys are sealed with AES-256-GCM before they reach Postgres; the router holds one decrypted key for the length of a request."
         ] })
       ] }),
-      /* @__PURE__ */ jsx5("div", { class: "head-actions", children: /* @__PURE__ */ jsx5("span", { class: "stamp", children: "11 of 15 configured" }) })
+      /* @__PURE__ */ jsx5("div", { class: "head-actions", children: /* @__PURE__ */ jsxs5("span", { class: "stamp", children: [
+        usage.length,
+        " of ",
+        props.data.off.length,
+        " configured"
+      ] }) })
     ] }),
     props.notice ? /* @__PURE__ */ jsx5("div", { class: "notice", role: "status", children: props.notice }) : null,
     /* @__PURE__ */ jsxs5("div", { class: "section-row", children: [
@@ -1794,7 +2032,7 @@ var Providers = (props) => {
         ] })
       ] }),
       /* @__PURE__ */ jsxs5("div", { children: [
-        /* @__PURE__ */ jsx5("div", { class: "panel", children: PROVIDER_USAGE.map((p) => {
+        /* @__PURE__ */ jsx5("div", { class: "panel", children: usage.map((p) => {
           const s = statusOf(p);
           return /* @__PURE__ */ jsxs5("div", { class: "key-row", children: [
             /* @__PURE__ */ jsxs5("div", { class: "kl", children: [
@@ -1816,16 +2054,16 @@ var Providers = (props) => {
             /* @__PURE__ */ jsx5("div", { class: "acts", children: /* @__PURE__ */ jsx5("button", { class: "btn btn-sm btn-quiet", type: "button", "data-prefill": p.id, children: p.keyHint ? "Replace" : "Add key" }) })
           ] });
         }) }),
-        PROVIDERS_OFF.length > 0 ? /* @__PURE__ */ jsxs5("p", { class: "off-list", children: [
+        props.data.off.length > 0 ? /* @__PURE__ */ jsxs5("p", { class: "off-list", children: [
           "Not configured: ",
-          PROVIDERS_OFF.map((p) => `${p.name} (${p.reason})`).join(" \xB7 ")
+          props.data.off.map((p) => `${p.name} (${p.reason})`).join(" \xB7 ")
         ] }) : null,
         /* @__PURE__ */ jsxs5("form", { class: "panel add-key", method: "post", action: "/providers/keys", children: [
           /* @__PURE__ */ jsxs5("div", { class: "field", children: [
             /* @__PURE__ */ jsx5("label", { for: "pk-provider", children: "Provider" }),
             /* @__PURE__ */ jsxs5("select", { id: "pk-provider", name: "provider", "data-provider-select": true, required: true, children: [
-              PROVIDER_USAGE.map((p) => /* @__PURE__ */ jsx5("option", { value: p.id, children: p.name })),
-              PROVIDERS_OFF.map((p) => /* @__PURE__ */ jsx5("option", { value: p.id, children: p.name }))
+              usage.map((p) => /* @__PURE__ */ jsx5("option", { value: p.id, children: p.name })),
+              props.data.off.map((p) => /* @__PURE__ */ jsx5("option", { value: p.id, children: p.name }))
             ] })
           ] }),
           /* @__PURE__ */ jsxs5("div", { class: "field", children: [
@@ -1857,14 +2095,15 @@ var Providers = (props) => {
         /* @__PURE__ */ jsx5("h2", { children: "Daily limits" }),
         /* @__PURE__ */ jsx5("p", { children: "The ceiling the router will not cross for each provider, in requests per UTC day. Zero means no cap: the provider is tried last, never filtered out." }),
         /* @__PURE__ */ jsxs5("p", { class: "summary", children: [
-          thousands(PROVIDER_USAGE.reduce((a, p) => a + p.limit, 0)),
-          " requests a day in total, of which ",
-          thousands(PROVIDER_USAGE.reduce((a, p) => a + p.used, 0)),
+          thousands(usage.reduce((a, p) => a + p.limit, 0)),
+          " requests a day in total, of which",
+          " ",
+          thousands(usage.reduce((a, p) => a + p.used, 0)),
           " are spent."
         ] })
       ] }),
       /* @__PURE__ */ jsx5("div", { class: "panel", children: /* @__PURE__ */ jsxs5("form", { method: "post", action: "/providers/limits", children: [
-        PROVIDER_USAGE.map((p) => /* @__PURE__ */ jsxs5("div", { class: "switch-row", children: [
+        usage.map((p) => /* @__PURE__ */ jsxs5("div", { class: "switch-row", children: [
           /* @__PURE__ */ jsxs5("div", { class: "sr-main", children: [
             /* @__PURE__ */ jsx5("div", { class: "sr-title", children: p.name }),
             /* @__PURE__ */ jsxs5("div", { class: "sr-desc", children: [
@@ -1893,37 +2132,6 @@ var Providers = (props) => {
     ] }),
     /* @__PURE__ */ jsxs5("div", { class: "section-row", children: [
       /* @__PURE__ */ jsxs5("div", { class: "setting-col", children: [
-        /* @__PURE__ */ jsx5("h2", { children: "Router endpoint" }),
-        /* @__PURE__ */ jsx5("p", { children: "Point any OpenAI client at this base URL and send the bearer token. Nothing else about the client changes." })
-      ] }),
-      /* @__PURE__ */ jsxs5("div", { class: "panel", children: [
-        /* @__PURE__ */ jsxs5("div", { class: "field", children: [
-          /* @__PURE__ */ jsx5("label", { for: "base-url", children: "Base URL" }),
-          /* @__PURE__ */ jsxs5("div", { class: "copy-field", children: [
-            /* @__PURE__ */ jsx5("input", { id: "base-url", type: "text", readonly: true, value: props.base, "data-copy-source": true }),
-            /* @__PURE__ */ jsxs5("button", { class: "btn btn-sm", type: "button", "data-copy-from": "base-url", children: [
-              /* @__PURE__ */ jsx5("svg", { viewBox: "0 0 24 24", width: "13", height: "13", "aria-hidden": "true", children: raw3(COPY_ICON2) }),
-              "Copy"
-            ] })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxs5("div", { class: "field", children: [
-          /* @__PURE__ */ jsx5("label", { for: "router-key", children: "Bearer token" }),
-          /* @__PURE__ */ jsx5("input", { id: "router-key", class: "mono-input", type: "text", readonly: true, value: props.keyHint }),
-          /* @__PURE__ */ jsxs5("span", { class: "help", children: [
-            "Set in ",
-            /* @__PURE__ */ jsx5("span", { class: "mono", children: "ROUTER_KEY" }),
-            ". The full value is never rendered here."
-          ] })
-        ] }),
-        /* @__PURE__ */ jsx5("div", { class: "alias-table", children: ALIASES.map(([name, what]) => /* @__PURE__ */ jsxs5("div", { class: "alias-row", children: [
-          /* @__PURE__ */ jsx5("span", { class: "mono", children: name }),
-          /* @__PURE__ */ jsx5("span", { class: "dim", children: what })
-        ] })) })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxs5("div", { class: "section-row", children: [
-      /* @__PURE__ */ jsxs5("div", { class: "setting-col", children: [
         /* @__PURE__ */ jsx5("h2", { children: "Catalog sync" }),
         /* @__PURE__ */ jsx5("p", { children: "Pulls each provider's model list and marks anything that disappeared as disabled. Run it after adding a key, and whenever a family starts returning 404." })
       ] }),
@@ -1931,7 +2139,7 @@ var Providers = (props) => {
         /* @__PURE__ */ jsxs5("div", { class: "switch-row", children: [
           /* @__PURE__ */ jsxs5("div", { class: "sr-main", children: [
             /* @__PURE__ */ jsx5("div", { class: "sr-title", children: "Last sync" }),
-            /* @__PURE__ */ jsx5("div", { class: "sr-desc", children: "4 hours ago \xB7 32 endpoints across 11 providers" })
+            /* @__PURE__ */ jsx5("div", { class: "sr-desc", children: "Synced on demand from the Sync button below" })
           ] }),
           /* @__PURE__ */ jsx5("form", { method: "post", action: "/providers/sync", children: /* @__PURE__ */ jsx5("button", { class: "btn", type: "submit", children: "Sync now" }) })
         ] }),
@@ -1948,49 +2156,46 @@ var METRICS = [
   { id: "tokens", label: "Tokens" },
   { id: "burn", label: "Share of cap" }
 ];
-var Usage = ({ metric }) => {
-  const ranked = [...PROVIDER_USAGE].sort((a, b) => b.used - a.used);
+var Usage = ({ data, metric }) => {
+  const ranked = [...data.usage].sort((a, b) => b.used - a.used);
   const top = ranked.slice(0, 8);
   const config2 = metric === "burn" ? {
     kind: "bars",
-    labels: PROVIDER_USAGE.map((p) => SHORT[p.id] ?? p.id),
-    values: PROVIDER_USAGE.map((p) => Number(burn(p).toFixed(3))),
+    labels: ranked.map((p) => SHORT[p.id] ?? p.id),
+    values: ranked.map((p) => Number(burn(p).toFixed(3))),
     format: "pct0",
     tickFormat: "pct0",
     height: 268,
-    // the providers past 80% â€” the same three the header counts â€” carry the hue
-    highlight: PROVIDER_USAGE.map((p, i) => burn(p) >= 0.8 ? i : -1).filter((i) => i >= 0),
+    highlight: ranked.map((p, i) => burn(p) >= 0.8 ? i : -1).filter((i) => i >= 0),
     colour: "var(--chart-3)"
   } : {
     kind: "bars",
-    labels: HOUR_LABELS,
-    values: metric === "tokens" ? HOURLY_TOKENS : HOURLY,
-    highlight: CURRENT_HOUR,
+    labels: data.hourLabels,
+    values: metric === "tokens" ? data.hourlyTokens : data.hourly,
+    highlight: data.currentHour,
     format: metric === "tokens" ? "compact" : "int",
     height: 268,
     colour: "var(--chart-3)"
   };
   const what = metric === "burn" ? "Daily ceiling used, per provider" : metric === "tokens" ? "Tokens by hour" : "Requests by hour";
-  const totalLabel = metric === "burn" ? `${PROVIDER_USAGE.filter((p) => burn(p) > 0.8).length} above 80%` : metric === "tokens" ? `${compact(TOKENS_TODAY)} \xB7 UTC today` : `${thousands(REQUESTS_TODAY)} \xB7 UTC today`;
+  const totalLabel = metric === "burn" ? `${ranked.filter((p) => burn(p) > 0.8).length} above 80%` : metric === "tokens" ? `${compact(data.tokensToday)} / UTC today` : `${thousands(data.requestsToday)} / UTC today`;
   return /* @__PURE__ */ jsxs6("div", { class: "stack", children: [
     /* @__PURE__ */ jsxs6("div", { class: "page-head ruled", children: [
       /* @__PURE__ */ jsxs6("div", { children: [
         /* @__PURE__ */ jsx6("h1", { children: "Usage" }),
         /* @__PURE__ */ jsxs6("p", { class: "sub", children: [
-          utcDateLong(),
-          " \xB7 counters reset at 00:00 UTC. ",
-          thousands(REQUESTS_TODAY),
-          " requests and",
+          data.requestsToday,
+          " requests and ",
+          compact(data.tokensToday),
+          " tokens spent against",
           " ",
-          compact(TOKENS_TODAY),
-          " tokens spent against ",
-          thousands(CAPACITY_TODAY),
-          " available requests."
+          thousands(data.capacityToday),
+          " available requests today."
         ] })
       ] }),
       /* @__PURE__ */ jsx6("div", { class: "head-actions", children: /* @__PURE__ */ jsxs6("span", { class: "stamp", children: [
         "p95 ",
-        thousands(WEIGHTED_P95),
+        thousands(data.weightedP95),
         " ms"
       ] }) })
     ] }),
@@ -2000,7 +2205,7 @@ var Usage = ({ metric }) => {
           /* @__PURE__ */ jsx6("span", { class: "what", children: "Where the requests went" }),
           /* @__PURE__ */ jsxs6("span", { class: "total", children: [
             "top 8 of ",
-            PROVIDER_USAGE.length
+            ranked.length
           ] })
         ] }),
         /* @__PURE__ */ jsx6("div", { class: "ledger", children: top.map((p) => /* @__PURE__ */ jsxs6("div", { class: "ledger-row", children: [
@@ -2013,10 +2218,9 @@ var Usage = ({ metric }) => {
         ] })) }),
         /* @__PURE__ */ jsxs6("p", { class: "footnote tight", children: [
           "The remaining ",
-          PROVIDER_USAGE.length - top.length,
-          " providers took",
-          " ",
-          thousands(REQUESTS_TODAY - top.reduce((a, p) => a + p.used, 0)),
+          ranked.length - top.length,
+          " providers took ",
+          thousands(data.requestsToday - top.reduce((a, p) => a + p.used, 0)),
           " requests between them."
         ] })
       ] }),
@@ -2040,7 +2244,7 @@ var Usage = ({ metric }) => {
       /* @__PURE__ */ jsxs6("div", { class: "section-head", children: [
         /* @__PURE__ */ jsx6("h2", { class: "quiet", children: "By provider" }),
         /* @__PURE__ */ jsxs6("span", { class: "count", children: [
-          RATE_LIMITED_TODAY,
+          data.rateLimitedToday,
           " rate-limited calls today"
         ] })
       ] }),
@@ -2072,16 +2276,16 @@ var Usage = ({ metric }) => {
           ] })),
           /* @__PURE__ */ jsxs6("tr", { class: "total-row", children: [
             /* @__PURE__ */ jsx6("td", { children: "All providers" }),
-            /* @__PURE__ */ jsx6("td", { class: "r num", children: PROVIDER_USAGE.reduce((a, p) => a + p.keys, 0) }),
-            /* @__PURE__ */ jsx6("td", { class: "r num", children: thousands(REQUESTS_TODAY) }),
-            /* @__PURE__ */ jsx6("td", { class: "r num", children: compact(TOKENS_TODAY) }),
+            /* @__PURE__ */ jsx6("td", { class: "r num", children: ranked.reduce((a, p) => a + p.keys, 0) }),
+            /* @__PURE__ */ jsx6("td", { class: "r num", children: thousands(data.requestsToday) }),
+            /* @__PURE__ */ jsx6("td", { class: "r num", children: compact(data.tokensToday) }),
             /* @__PURE__ */ jsxs6("td", { class: "r num", children: [
-              (REQUESTS_TODAY / CAPACITY_TODAY * 100).toFixed(1),
+              (data.requestsToday / data.capacityToday * 100).toFixed(1),
               "%"
             ] }),
-            /* @__PURE__ */ jsx6("td", { class: "r num", children: RATE_LIMITED_TODAY }),
+            /* @__PURE__ */ jsx6("td", { class: "r num", children: data.rateLimitedToday }),
             /* @__PURE__ */ jsxs6("td", { class: "r num", children: [
-              thousands(WEIGHTED_P95),
+              thousands(data.weightedP95),
               " ms"
             ] })
           ] })
@@ -2100,7 +2304,7 @@ var Usage = ({ metric }) => {
           /* @__PURE__ */ jsx6("th", { class: "r", children: "Tokens" }),
           /* @__PURE__ */ jsx6("th", { class: "r", children: "Fallbacks" })
         ] }) }),
-        /* @__PURE__ */ jsx6("tbody", { children: RECENT_REQUESTS.map((r) => /* @__PURE__ */ jsxs6("tr", { children: [
+        /* @__PURE__ */ jsx6("tbody", { children: data.requests.map((r) => /* @__PURE__ */ jsxs6("tr", { children: [
           /* @__PURE__ */ jsx6("td", { class: "dim", children: relTime(r.minutesAgo) }),
           /* @__PURE__ */ jsx6("td", { class: "model", children: r.family }),
           /* @__PURE__ */ jsx6("td", { class: "dim", children: r.provider }),
@@ -2118,15 +2322,17 @@ var Usage = ({ metric }) => {
 };
 
 // src/ui/pages/login.tsx
-import { raw as raw4 } from "hono/html";
+import { raw as raw3 } from "hono/html";
 import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs7 } from "hono/jsx/jsx-runtime";
 var Login = ({ error }) => /* @__PURE__ */ jsxs7(Fragment3, { children: [
-  raw4("<!DOCTYPE html>"),
+  raw3("<!DOCTYPE html>"),
   /* @__PURE__ */ jsxs7("html", { lang: "en", children: [
     /* @__PURE__ */ jsxs7("head", { children: [
       /* @__PURE__ */ jsx7("meta", { charset: "utf-8" }),
       /* @__PURE__ */ jsx7("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
       /* @__PURE__ */ jsx7("title", { children: "Sign in \xB7 Router" }),
+      /* @__PURE__ */ jsx7("link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }),
+      /* @__PURE__ */ jsx7("meta", { name: "theme-color", content: "#1d5fbf" }),
       /* @__PURE__ */ jsx7("meta", { name: "color-scheme", content: "light" }),
       /* @__PURE__ */ jsx7("link", { rel: "preconnect", href: "https://fonts.googleapis.com" }),
       /* @__PURE__ */ jsx7("link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "anonymous" }),
@@ -2141,12 +2347,7 @@ var Login = ({ error }) => /* @__PURE__ */ jsxs7(Fragment3, { children: [
     ] }),
     /* @__PURE__ */ jsx7("body", { class: "gate", children: /* @__PURE__ */ jsxs7("main", { class: "gate-card", children: [
       /* @__PURE__ */ jsxs7("div", { class: "brand gate-brand", children: [
-        /* @__PURE__ */ jsxs7("svg", { class: "brand-mark", viewBox: "0 0 22 22", "aria-hidden": "true", children: [
-          /* @__PURE__ */ jsx7("rect", { x: "1", y: "13", width: "4", height: "8", fill: "currentColor" }),
-          /* @__PURE__ */ jsx7("rect", { x: "7", y: "8", width: "4", height: "13", fill: "currentColor" }),
-          /* @__PURE__ */ jsx7("rect", { x: "13", y: "3", width: "4", height: "18", fill: "currentColor" }),
-          /* @__PURE__ */ jsx7("rect", { x: "19", y: "10", width: "2", height: "11", fill: "#c3c8d0" })
-        ] }),
+        /* @__PURE__ */ jsx7("img", { class: "brand-mark", src: "/logo.svg", alt: "", width: "22", height: "22" }),
         /* @__PURE__ */ jsx7("span", { class: "brand-name", children: "Router" })
       ] }),
       /* @__PURE__ */ jsx7("h1", { children: "Sign in" }),
@@ -2179,13 +2380,169 @@ var Login = ({ error }) => /* @__PURE__ */ jsxs7(Fragment3, { children: [
   ] })
 ] });
 
+// src/ui/pages/playground.tsx
+import { jsx as jsx8, jsxs as jsxs8 } from "hono/jsx/jsx-runtime";
+var Playground = ({ data }) => {
+  const families = Array.from(new Set(data.models.map((m) => m.family))).sort();
+  return /* @__PURE__ */ jsxs8("div", { class: "stack playground-page", children: [
+    /* @__PURE__ */ jsxs8("div", { class: "page-head", children: [
+      /* @__PURE__ */ jsxs8("div", { children: [
+        /* @__PURE__ */ jsx8("h1", { children: "Playground" }),
+        /* @__PURE__ */ jsxs8("p", { class: "sub", children: [
+          "Send a prompt through the router and inspect the response, the model that answered, and the latency. Every call goes through the same fallback chain as ",
+          /* @__PURE__ */ jsx8("span", { class: "mono", children: "/v1" }),
+          "."
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx8("div", { class: "head-actions", children: /* @__PURE__ */ jsx8("span", { class: data.live ? "stamp" : "stamp demo", children: data.live ? "live" : "demo data" }) })
+    ] }),
+    /* @__PURE__ */ jsx8(Section, { title: "Request", children: /* @__PURE__ */ jsx8("div", { class: "card", children: /* @__PURE__ */ jsxs8("form", { id: "playground-form", class: "playground-form", autocomplete: "off", children: [
+      /* @__PURE__ */ jsxs8("div", { class: "pg-grid", children: [
+        /* @__PURE__ */ jsxs8("div", { class: "field", children: [
+          /* @__PURE__ */ jsx8("label", { for: "pg-model", children: "Model" }),
+          /* @__PURE__ */ jsxs8("select", { id: "pg-model", name: "model", children: [
+            /* @__PURE__ */ jsxs8("optgroup", { label: "Aliases", children: [
+              /* @__PURE__ */ jsx8("option", { value: "auto", selected: true, children: "auto (fallback chain)" }),
+              /* @__PURE__ */ jsx8("option", { value: "all", children: "all (every free model)" }),
+              /* @__PURE__ */ jsx8("option", { value: "fast", children: "fast" }),
+              /* @__PURE__ */ jsx8("option", { value: "smart", children: "smart" }),
+              /* @__PURE__ */ jsx8("option", { value: "vision", children: "vision" }),
+              /* @__PURE__ */ jsx8("option", { value: "tiptip", children: "tiptip (9router)" })
+            ] }),
+            /* @__PURE__ */ jsx8("optgroup", { label: "Model families", children: families.map((f) => /* @__PURE__ */ jsx8("option", { value: f, children: f })) })
+          ] }),
+          /* @__PURE__ */ jsxs8("p", { class: "help", children: [
+            "Aliases walk the fallback chain. A family name or ",
+            /* @__PURE__ */ jsx8("span", { class: "mono", children: "provider/model" }),
+            " ",
+            "pins the target."
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs8("div", { class: "field", children: [
+          /* @__PURE__ */ jsxs8("label", { for: "pg-system", children: [
+            "System prompt ",
+            /* @__PURE__ */ jsx8("span", { class: "dim", children: "(optional)" })
+          ] }),
+          /* @__PURE__ */ jsx8("input", { id: "pg-system", name: "system", type: "text", placeholder: "You are a helpful assistant." })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs8("div", { class: "field", children: [
+        /* @__PURE__ */ jsx8("label", { for: "pg-prompt", children: "Prompt" }),
+        /* @__PURE__ */ jsx8("textarea", { id: "pg-prompt", name: "prompt", rows: 6, placeholder: "Ask anything...", required: true })
+      ] }),
+      /* @__PURE__ */ jsxs8("div", { class: "pg-actions", children: [
+        /* @__PURE__ */ jsx8("button", { class: "btn btn-primary", type: "submit", id: "pg-submit", children: "Send" }),
+        /* @__PURE__ */ jsx8("button", { class: "btn btn-quiet", type: "button", id: "pg-clear", children: "Clear" }),
+        /* @__PURE__ */ jsx8("span", { class: "pg-status", id: "pg-status", "aria-live": "polite" })
+      ] })
+    ] }) }) }),
+    /* @__PURE__ */ jsx8(Section, { title: "Response", aside: "from /v1/chat/completions", children: /* @__PURE__ */ jsxs8("div", { class: "card pg-response-card", children: [
+      /* @__PURE__ */ jsxs8("div", { class: "pg-meta", id: "pg-meta", hidden: true, children: [
+        /* @__PURE__ */ jsx8("span", { class: "mark ok", id: "pg-meta-model" }),
+        /* @__PURE__ */ jsx8("span", { class: "mark plain", id: "pg-meta-provider" }),
+        /* @__PURE__ */ jsx8("span", { class: "num", id: "pg-meta-latency" }),
+        /* @__PURE__ */ jsx8("span", { class: "num", id: "pg-meta-tokens" }),
+        /* @__PURE__ */ jsx8("span", { class: "mark", id: "pg-meta-fallbacks", hidden: true })
+      ] }),
+      /* @__PURE__ */ jsx8("pre", { class: "pg-output", id: "pg-output", "aria-live": "polite", children: /* @__PURE__ */ jsx8("span", { class: "pg-placeholder", children: "Response will appear here." }) }),
+      /* @__PURE__ */ jsx8("pre", { class: "pg-error", id: "pg-error", hidden: true })
+    ] }) })
+  ] });
+};
+
+// src/ui/pages/endpoint.tsx
+import { raw as raw4 } from "hono/html";
+import { jsx as jsx9, jsxs as jsxs9 } from "hono/jsx/jsx-runtime";
+var COPY_ICON2 = '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H6a3 3 0 0 0-3 3v6.5A2.5 2.5 0 0 0 5.5 15"/>';
+var ALIASES = [
+  ["auto", "the default fallback chain, most headroom first"],
+  ["all", "every zero-cost model, mixed"],
+  ["fast", "groq, then cerebras, then nvidia"],
+  ["smart", "glm-5.3, then kimi-k3.1-pro"],
+  ["vision", "gemma-4-31b-it, then gemini flash lite"],
+  ["tiptip", "9router combo"]
+];
+var Endpoint = ({ base, apiKey }) => /* @__PURE__ */ jsxs9("div", { class: "stack settings", children: [
+  /* @__PURE__ */ jsxs9("div", { class: "page-head", children: [
+    /* @__PURE__ */ jsxs9("div", { children: [
+      /* @__PURE__ */ jsx9("h1", { children: "Endpoint" }),
+      /* @__PURE__ */ jsx9("p", { class: "sub", children: "Point any OpenAI-compatible client at this base URL and send the bearer token. Nothing else about the client changes." })
+    ] }),
+    /* @__PURE__ */ jsx9("div", { class: "head-actions", children: /* @__PURE__ */ jsx9("span", { class: "stamp", children: "openai-compatible" }) })
+  ] }),
+  /* @__PURE__ */ jsxs9("div", { class: "section-row", children: [
+    /* @__PURE__ */ jsxs9("div", { class: "setting-col", children: [
+      /* @__PURE__ */ jsx9("h2", { children: "Connection" }),
+      /* @__PURE__ */ jsx9("p", { children: "Both values below are live. The key is shown in full once you reveal it; copy it into your client's environment rather than into a file that gets committed." })
+    ] }),
+    /* @__PURE__ */ jsxs9("div", { class: "panel", children: [
+      /* @__PURE__ */ jsxs9("div", { class: "field", children: [
+        /* @__PURE__ */ jsx9("label", { for: "base-url", children: "Base URL" }),
+        /* @__PURE__ */ jsxs9("div", { class: "copy-field", children: [
+          /* @__PURE__ */ jsx9("input", { id: "base-url", type: "text", readonly: true, value: base, "data-copy-source": true }),
+          /* @__PURE__ */ jsxs9("button", { class: "btn btn-sm", type: "button", "data-copy-from": "base-url", children: [
+            /* @__PURE__ */ jsx9("svg", { viewBox: "0 0 24 24", width: "13", height: "13", "aria-hidden": "true", children: raw4(COPY_ICON2) }),
+            "Copy"
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs9("div", { class: "field", children: [
+        /* @__PURE__ */ jsx9("label", { for: "router-key", children: "API key" }),
+        apiKey ? /* @__PURE__ */ jsxs9("div", { class: "copy-field", children: [
+          /* @__PURE__ */ jsx9(
+            "input",
+            {
+              id: "router-key",
+              class: "mono-input",
+              type: "password",
+              readonly: true,
+              value: apiKey,
+              "data-reveal-target": true
+            }
+          ),
+          /* @__PURE__ */ jsx9("button", { class: "btn btn-sm", type: "button", "data-reveal-toggle": "router-key", "aria-pressed": "false", children: "Reveal" }),
+          /* @__PURE__ */ jsxs9("button", { class: "btn btn-sm", type: "button", "data-copy-from": "router-key", children: [
+            /* @__PURE__ */ jsx9("svg", { viewBox: "0 0 24 24", width: "13", height: "13", "aria-hidden": "true", children: raw4(COPY_ICON2) }),
+            "Copy"
+          ] })
+        ] }) : /* @__PURE__ */ jsx9("input", { id: "router-key", class: "mono-input", type: "text", readonly: true, value: "not set" }),
+        /* @__PURE__ */ jsxs9("span", { class: "help", children: [
+          "The value of ",
+          /* @__PURE__ */ jsx9("span", { class: "mono", children: "ROUTER_KEY" }),
+          ". A bearer token issued with",
+          " ",
+          /* @__PURE__ */ jsx9("span", { class: "mono", children: "POST /v1/keys" }),
+          " also works."
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx9("div", { class: "alias-table", children: ALIASES.map(([name, what]) => /* @__PURE__ */ jsxs9("div", { class: "alias-row", children: [
+        /* @__PURE__ */ jsx9("span", { class: "mono", children: name }),
+        /* @__PURE__ */ jsx9("span", { class: "dim", children: what })
+      ] })) })
+    ] })
+  ] }),
+  /* @__PURE__ */ jsx9(Section, { title: "Ask for one", aside: "the model name is the only variable", children: /* @__PURE__ */ jsxs9("div", { class: "card", children: [
+    /* @__PURE__ */ jsx9("pre", { class: "code", children: /* @__PURE__ */ jsx9("code", { children: `curl "${base}/chat/completions" \\
+   -H "authorization: Bearer $ROUTER_KEY" \\
+   -H "content-type: application/json" \\
+   -d '{"model":"auto","stream":true,
+        "messages":[{"role":"user","content":"hi"}]}'` }) }),
+    /* @__PURE__ */ jsxs9("p", { class: "code-note", children: [
+      "Swap ",
+      /* @__PURE__ */ jsx9("span", { class: "mono", children: "auto" }),
+      " for any alias or family from the Models page. Prefix a provider to pin the request \u2014 ",
+      /* @__PURE__ */ jsx9("span", { class: "mono", children: "nvidia/glm-5.3" }),
+      " skips the chain."
+    ] })
+  ] }) })
+] });
+
 // src/app.tsx
-import { jsx as jsx8 } from "hono/jsx/jsx-runtime";
+import { jsx as jsx10 } from "hono/jsx/jsx-runtime";
 var app = new Hono();
-var ALERTS = PROVIDER_USAGE.filter((p) => p.status === "degraded").length;
 function page(active, title, shortTitle, c, children) {
   return c.html(
-    /* @__PURE__ */ jsx8(Layout, { title, active, shortTitle, alerts: ALERTS, children })
+    /* @__PURE__ */ jsx10(Layout, { title, active, shortTitle, alerts: 0, children })
   );
 }
 function notice(c) {
@@ -2193,30 +2550,42 @@ function notice(c) {
   if (!raw5) return void 0;
   return raw5.slice(0, 240);
 }
-app.get("/", requireDashboard, (c) => {
+app.get("/", requireDashboard, async (c) => {
+  const data = await loadDashboard();
   const metric = c.req.query("m") === "tokens" ? "tokens" : "requests";
-  return page("overview", "Overview", "Overview", c, /* @__PURE__ */ jsx8(Overview, { metric }));
+  return page("overview", "Overview", "Overview", c, /* @__PURE__ */ jsx10(Overview, { data, metric }));
 });
-app.get("/models", requireDashboard, (c) => {
+app.get("/models", requireDashboard, async (c) => {
+  const data = await loadDashboard();
   const asked = c.req.query("f");
   const filter = asked === "tools" || asked === "vision" || asked === "long" ? asked : "all";
-  return page("models", "Models", "Models", c, /* @__PURE__ */ jsx8(Models, { filter }));
+  return page("models", "Models", "Models", c, /* @__PURE__ */ jsx10(Models, { data, filter }));
 });
-app.get("/providers", requireDashboard, (c) => {
+app.get("/providers", requireDashboard, async (c) => {
   const routerKey = env.routerKey;
   const keyHint = routerKey ? `sk-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022${routerKey.slice(-4)}` : "not set";
+  const data = await loadDashboard();
   return page(
     "providers",
     "Providers",
     "Providers",
     c,
-    /* @__PURE__ */ jsx8(Providers, { base: `${new URL(c.req.url).origin}/v1`, keyHint, notice: notice(c) })
+    /* @__PURE__ */ jsx10(Providers, { base: `${new URL(c.req.url).origin}/v1`, keyHint, data, notice: notice(c) })
   );
 });
-app.get("/usage", requireDashboard, (c) => {
+app.get("/usage", requireDashboard, async (c) => {
+  const data = await loadDashboard();
   const asked = c.req.query("m");
   const metric = asked === "tokens" || asked === "burn" ? asked : "requests";
-  return page("usage", "Usage", "Usage", c, /* @__PURE__ */ jsx8(Usage, { metric }));
+  return page("usage", "Usage", "Usage", c, /* @__PURE__ */ jsx10(Usage, { data, metric }));
+});
+app.get("/playground", requireDashboard, async (c) => {
+  const data = await loadDashboard();
+  return page("playground", "Playground", "Playground", c, /* @__PURE__ */ jsx10(Playground, { data }));
+});
+app.get("/endpoint", requireDashboard, (c) => {
+  const base = `${new URL(c.req.url).origin}/v1`;
+  return page("endpoint", "Endpoint", "Endpoint", c, /* @__PURE__ */ jsx10(Endpoint, { base, apiKey: env.routerKey }));
 });
 function back(c, message) {
   return c.redirect(`/providers?notice=${encodeURIComponent(message)}`, 303);
@@ -2275,7 +2644,7 @@ app.post("/providers/sync", requireDashboard, async (c) => {
   if (env.isDemo) return back(c, "No DATABASE_URL is set. Run `npm run sync` with keys in the env instead.");
   try {
     const results = await syncCatalog(async (providerId) => {
-      const rows = await db().select().from(providerKeys).where(eq4(providerKeys.providerId, providerId)).limit(1);
+      const rows = await db().select().from(providerKeys).where(eq5(providerKeys.providerId, providerId)).limit(1);
       if (rows.length === 0) return null;
       const { openKeyCached: openKeyCached2 } = await Promise.resolve().then(() => (init_keys(), keys_exports));
       return openKeyCached2({
@@ -2293,49 +2662,88 @@ app.post("/providers/sync", requireDashboard, async (c) => {
     return back(c, `Sync failed: ${err.message}`);
   }
 });
-app.get("/login", (c) => c.html(/* @__PURE__ */ jsx8(Login, {})));
+app.get("/login", (c) => c.html(/* @__PURE__ */ jsx10(Login, {})));
 app.post("/login", async (c) => {
   const body = await c.req.parseBody();
   const password = String(body.password ?? "");
   if (await signIn(c, password)) return c.redirect("/", 303);
-  return c.html(/* @__PURE__ */ jsx8(Login, { error: "That password does not match." }), 401);
+  return c.html(/* @__PURE__ */ jsx10(Login, { error: "That password does not match." }), 401);
 });
 app.get("/logout", (c) => {
   signOut(c);
   return c.redirect("/login", 303);
 });
+app.post("/api/playground/chat", requireDashboard, async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: { code: "invalid_json", message: "The request body is not valid JSON." } }, 400);
+  }
+  if (!body || typeof body.model !== "string" || !Array.isArray(body.messages)) {
+    return c.json(
+      { error: { code: "invalid_request", message: "Expected { model, messages }." } },
+      400
+    );
+  }
+  body.stream = false;
+  const result = await routeChat(body, c.req.raw.signal);
+  if (!result.ok) {
+    return c.json(
+      { error: { code: result.code, message: result.detail, attempts: result.attempts } },
+      result.status
+    );
+  }
+  const { response, candidate, fallbacks, attempts } = result;
+  let payload;
+  let tokens = 0;
+  try {
+    payload = await response.clone().json();
+    tokens = Number(payload?.usage?.total_tokens ?? 0);
+  } catch {
+    return c.json(
+      { error: { code: "bad_upstream", message: "The upstream response was not valid JSON." } },
+      502
+    );
+  }
+  void recordUsage(candidate.providerId, tokens).catch(() => {
+  });
+  return c.json({
+    ...payload,
+    router: {
+      provider: candidate.providerId,
+      family: candidate.family,
+      model_id: candidate.family,
+      fallbacks,
+      latency_ms: attempts.at(-1)?.ms ?? null,
+      attempts
+    }
+  });
+});
 app.get("/healthz", (c) => c.json({ ok: true, demo: env.isDemo }));
-app.get("/v1/models", requireRouterKey, (c) => {
+app.get("/v1/models", requireRouterKey, async (c) => {
   const created = Math.floor(Date.now() / 1e3);
-  const ids = ["auto", "fast", "smart", "vision"];
-  for (const row of MODEL_ROWS) ids.push(row.family);
-  for (const row of MODEL_ROWS) {
+  const ids = ["auto", "fast", "smart", "vision", "tiptip", "all"];
+  const data = await loadDashboard();
+  for (const row of data.models) ids.push(row.family);
+  for (const row of data.models) {
     for (const providerId of row.providers) ids.push(`${providerId}/${row.family}`);
   }
   const seen = /* @__PURE__ */ new Set();
-  const data = ids.filter((id) => seen.has(id) ? false : (seen.add(id), true)).map((id) => ({ id, object: "model", created, owned_by: "router" }));
-  return c.json({ object: "list", data });
+  const list = ids.filter((id) => seen.has(id) ? false : (seen.add(id), true)).map((id) => ({ id, object: "model", created, owned_by: "router" }));
+  return c.json({ object: "list", data: list });
 });
 app.post("/v1/chat/completions", requireRouterKey, async (c) => {
   let body;
   try {
     body = await c.req.json();
   } catch {
-    return c.json(
-      { error: { code: "invalid_json", message: "The request body is not valid JSON." } },
-      400
-    );
+    return c.json({ error: { code: "invalid_json", message: "The request body is not valid JSON." } }, 400);
   }
   const result = await routeChat(body, c.req.raw.signal);
   if (!result.ok) {
     return c.json(
-      {
-        error: {
-          code: result.code,
-          message: result.detail,
-          attempts: result.attempts
-        }
-      },
+      { error: { code: result.code, message: result.detail, attempts: result.attempts } },
       result.status
     );
   }
@@ -2384,19 +2792,17 @@ app.notFound(
 );
 var app_default = app;
 
-// api/index.ts
-var config = {
-  runtime: "nodejs",
-  maxDuration: 300
-};
+// scripts/vercel-entry.ts
+var config = { runtime: "nodejs", maxDuration: 300 };
 var handler = handle(app_default);
 export {
-  config,
+  handler as DELETE,
   handler as GET,
+  handler as HEAD,
+  handler as OPTIONS,
+  handler as PATCH,
   handler as POST,
   handler as PUT,
-  handler as PATCH,
-  handler as DELETE,
-  handler as OPTIONS,
-  handler as HEAD
+  config,
+  handler
 };

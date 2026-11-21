@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
+    "build:vercel": "esbuild scripts/vercel-entry.ts --bundle --platform=node --format=esm --target=node20 --jsx=automatic --jsx-import-source=hono/jsx --external:hono --external:drizzle-orm --external:@neondatabase/serverless --outfile=api/index.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "seed": "tsx scripts/seed.ts",
@@ -21,6 +22,7 @@
     "@hono/node-server": "^1.19.6",
     "@types/node": "^24.10.1",
     "drizzle-kit": "^0.31.7",
+    "esbuild": "^0.25.12",
     "tsx": "^4.20.7",
     "typescript": "^5.9.3"
   }

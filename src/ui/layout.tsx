@@ -52,6 +52,8 @@ export const Layout: FC<LayoutProps> = (props) => (
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{props.title} · Router</title>
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+        <meta name="theme-color" content="#1d5fbf" />
         <meta name="color-scheme" content="light" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -65,12 +67,7 @@ export const Layout: FC<LayoutProps> = (props) => (
         <div class="shell">
           <aside class="sidebar" id="app-nav">
             <div class="brand">
-              <svg class="brand-mark" viewBox="0 0 22 22" aria-hidden="true">
-                <rect x="1" y="13" width="4" height="8" fill="currentColor" />
-                <rect x="7" y="8" width="4" height="13" fill="currentColor" />
-                <rect x="13" y="3" width="4" height="18" fill="currentColor" />
-                <rect x="19" y="10" width="2" height="11" fill="#c3c8d0" />
-              </svg>
+              <img class="brand-mark" src="/logo.svg" alt="" width="22" height="22" />
               <span class="brand-name">Router</span>
             </div>
             <span class="brand-scope">personal free-tier gateway</span>
