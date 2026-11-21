@@ -1,21 +1,6 @@
 import type { FC } from 'hono/jsx';
-import {
-  CAPACITY_TODAY,
-  CURRENT_HOUR,
-  HOURLY,
-  HOURLY_TOKENS,
-  HOUR_LABELS,
-  PROVIDER_USAGE,
-  RATE_LIMITED_TODAY,
-  RECENT_REQUESTS,
-  REQUESTS_TODAY,
-  TOKENS_TODAY,
-  WEIGHTED_P95,
-  burn,
-  compact,
-  thousands,
-  utcDateLong,
-} from '../../data/demo.ts';
+import { burn, compact, thousands } from '../../data/demo.ts';
+import type { DashboardData } from '../../data/index.ts';
 import { Chart, Mark, SHORT, relTime } from '../components.tsx';
 
 export type UsageMetric = 'requests' | 'tokens' | 'burn';
@@ -26,28 +11,27 @@ const METRICS: Array<{ id: UsageMetric; label: string }> = [
   { id: 'burn', label: 'Share of cap' },
 ];
 
-export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
-  const ranked = [...PROVIDER_USAGE].sort((a, b) => b.used - a.used);
+export const Usage: FC<{ data: DashboardData; metric: UsageMetric }> = ({ data, metric }) => {
+  const ranked = [...data.usage].sort((a, b) => b.used - a.used);
   const top = ranked.slice(0, 8);
 
   const config =
     metric === 'burn'
       ? {
           kind: 'bars',
-          labels: PROVIDER_USAGE.map((p) => SHORT[p.id] ?? p.id),
-          values: PROVIDER_USAGE.map((p) => Number(burn(p).toFixed(3))),
+          labels: ranked.map((p) => SHORT[p.id] ?? p.id),
+          values: ranked.map((p) => Number(burn(p).toFixed(3))),
           format: 'pct0',
           tickFormat: 'pct0',
           height: 268,
-          // the providers past 80% — the same three the header counts — carry the hue
-          highlight: PROVIDER_USAGE.map((p, i) => (burn(p) >= 0.8 ? i : -1)).filter((i) => i >= 0),
+          highlight: ranked.map((p, i) => (burn(p) >= 0.8 ? i : -1)).filter((i) => i >= 0),
           colour: 'var(--chart-3)',
         }
       : {
           kind: 'bars',
-          labels: HOUR_LABELS,
-          values: metric === 'tokens' ? HOURLY_TOKENS : HOURLY,
-          highlight: CURRENT_HOUR,
+          labels: data.hourLabels,
+          values: metric === 'tokens' ? data.hourlyTokens : data.hourly,
+          highlight: data.currentHour,
           format: metric === 'tokens' ? 'compact' : 'int',
           height: 268,
           colour: 'var(--chart-3)',
@@ -62,10 +46,10 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
 
   const totalLabel =
     metric === 'burn'
-      ? `${PROVIDER_USAGE.filter((p) => burn(p) > 0.8).length} above 80%`
+      ? `${ranked.filter((p) => burn(p) > 0.8).length} above 80%`
       : metric === 'tokens'
-        ? `${compact(TOKENS_TODAY)} · UTC today`
-        : `${thousands(REQUESTS_TODAY)} · UTC today`;
+        ? `${compact(data.tokensToday)} / UTC today`
+        : `${thousands(data.requestsToday)} / UTC today`;
 
   return (
     <div class="stack">
@@ -73,13 +57,12 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
         <div>
           <h1>Usage</h1>
           <p class="sub">
-            {utcDateLong()} · counters reset at 00:00 UTC. {thousands(REQUESTS_TODAY)} requests and{' '}
-            {compact(TOKENS_TODAY)} tokens spent against {thousands(CAPACITY_TODAY)} available
-            requests.
+            {data.requestsToday} requests and {compact(data.tokensToday)} tokens spent against{' '}
+            {thousands(data.capacityToday)} available requests today.
           </p>
         </div>
         <div class="head-actions">
-          <span class="stamp">p95 {thousands(WEIGHTED_P95)} ms</span>
+          <span class="stamp">p95 {thousands(data.weightedP95)} ms</span>
         </div>
       </div>
 
@@ -87,7 +70,7 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
         <div class="card">
           <div class="chart-note">
             <span class="what">Where the requests went</span>
-            <span class="total">top 8 of {PROVIDER_USAGE.length}</span>
+            <span class="total">top 8 of {ranked.length}</span>
           </div>
           <div class="ledger">
             {top.map((p) => (
@@ -99,8 +82,7 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
             ))}
           </div>
           <p class="footnote tight">
-            The remaining {PROVIDER_USAGE.length - top.length} providers took{' '}
-            {thousands(REQUESTS_TODAY - top.reduce((a, p) => a + p.used, 0))} requests between them.
+            The remaining {ranked.length - top.length} providers took {thousands(data.requestsToday - top.reduce((a, p) => a + p.used, 0))} requests between them.
           </p>
         </div>
 
@@ -127,7 +109,7 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
         <div class="section-head">
           <h2 class="quiet">By provider</h2>
           <span class="count">
-            {RATE_LIMITED_TODAY} rate-limited calls today
+            {data.rateLimitedToday} rate-limited calls today
           </span>
         </div>
         <div class="card">
@@ -159,12 +141,12 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
               ))}
               <tr class="total-row">
                 <td>All providers</td>
-                <td class="r num">{PROVIDER_USAGE.reduce((a, p) => a + p.keys, 0)}</td>
-                <td class="r num">{thousands(REQUESTS_TODAY)}</td>
-                <td class="r num">{compact(TOKENS_TODAY)}</td>
-                <td class="r num">{((REQUESTS_TODAY / CAPACITY_TODAY) * 100).toFixed(1)}%</td>
-                <td class="r num">{RATE_LIMITED_TODAY}</td>
-                <td class="r num">{thousands(WEIGHTED_P95)} ms</td>
+                <td class="r num">{ranked.reduce((a, p) => a + p.keys, 0)}</td>
+                <td class="r num">{thousands(data.requestsToday)}</td>
+                <td class="r num">{compact(data.tokensToday)}</td>
+                <td class="r num">{((data.requestsToday / data.capacityToday) * 100).toFixed(1)}%</td>
+                <td class="r num">{data.rateLimitedToday}</td>
+                <td class="r num">{thousands(data.weightedP95)} ms</td>
               </tr>
             </tbody>
           </table>
@@ -189,7 +171,7 @@ export const Usage: FC<{ metric: UsageMetric }> = ({ metric }) => {
               </tr>
             </thead>
             <tbody>
-              {RECENT_REQUESTS.map((r) => (
+              {data.requests.map((r) => (
                 <tr>
                   <td class="dim">{relTime(r.minutesAgo)}</td>
                   <td class="model">{r.family}</td>

@@ -1,15 +1,10 @@
 import type { FC } from 'hono/jsx';
 import {
-  MODEL_ENDPOINTS,
-  MODEL_FAMILIES,
-  MODEL_LONGEST,
-  MODEL_ROWS,
-  MODEL_SERVED,
-  REQUESTS_TODAY,
   providerName,
   thousands,
   type ModelRow,
 } from '../../data/demo.ts';
+import type { DashboardData } from '../../data/index.ts';
 import { contextLabel } from '../components.tsx';
 
 export type ModelFilter = 'all' | 'tools' | 'vision' | 'long';
@@ -30,11 +25,10 @@ function keep(row: ModelRow, filter: ModelFilter): boolean {
 
 const byServed = (a: ModelRow, b: ModelRow) => b.served - a.served;
 
-export const Models: FC<{ filter: ModelFilter }> = ({ filter }) => {
-  const rows = MODEL_ROWS.filter((r) => keep(r, filter)).sort(byServed);
+export const Models: FC<{ data: DashboardData; filter: ModelFilter }> = ({ data, filter }) => {
+  const rows = data.models.filter((r) => keep(r, filter)).sort(byServed);
   const served = rows.reduce((a, r) => a + r.served, 0);
   const endpoints = rows.reduce((a, r) => a + r.providers.length, 0);
-  const remainder = REQUESTS_TODAY - MODEL_SERVED;
 
   return (
     <div class="stack">
@@ -42,12 +36,12 @@ export const Models: FC<{ filter: ModelFilter }> = ({ filter }) => {
         <div>
           <h1>Models</h1>
           <p class="sub">
-            {MODEL_FAMILIES} families across {MODEL_ENDPOINTS} free endpoints. Ask for a bare family
+            {data.modelFamilies} families across {data.modelEndpoints} free endpoints. Ask for a bare family
             name and the router fans out across every provider that serves it, most headroom first.
           </p>
         </div>
         <div class="head-actions">
-          <span class="stamp">longest context {MODEL_LONGEST.toLocaleString('en-US')}K</span>
+          <span class="stamp">longest context {data.modelLongest.toLocaleString('en-US')}K</span>
         </div>
       </div>
 
@@ -59,7 +53,7 @@ export const Models: FC<{ filter: ModelFilter }> = ({ filter }) => {
             </a>
           ))}
           <span class="count" data-count-wrap>
-            <strong data-count>{rows.length}</strong> of {MODEL_FAMILIES} families
+            <strong data-count>{rows.length}</strong> of {data.modelFamilies} families
           </span>
         </div>
 
@@ -117,7 +111,7 @@ export const Models: FC<{ filter: ModelFilter }> = ({ filter }) => {
         </div>
 
         <p class="footnote">
-          {thousands(remainder)} of today's {thousands(REQUESTS_TODAY)} requests went to families
+          {thousands(data.requestsToday - served)} of today's {thousands(data.requestsToday)} requests went to families
           below this list.
         </p>
       </div>
@@ -126,22 +120,19 @@ export const Models: FC<{ filter: ModelFilter }> = ({ filter }) => {
         <div class="section-head">
           <h2>
             Ask for one
-            <span class="aside">any OpenAI client works; the model name is the only variable</span>
+            <span class="aside">only variable</span>
           </h2>
         </div>
         <div class="card">
           <pre class="code">
             <code>{`curl "$ROUTER_URL/v1/chat/completions" \\
-  -H "authorization: Bearer $ROUTER_KEY" \\
-  -H "content-type: application/json" \\
-  -d '{"model":"gpt-oss-120b","stream":true,
-       "messages":[{"role":"user","content":"hi"}]}'`}</code>
+   -H "authorization: Bearer $ROUTER_KEY" \\
+   -H "content-type: application/json" \\
+   -d '{"model":"gpt-oss-120b","stream":true,
+        "messages":[{"role":"user","content":"hi"}]}'`}</code>
           </pre>
           <p class="code-note">
-            <span class="mono">auto</span>, <span class="mono">fast</span>,{' '}
-            <span class="mono">smart</span> and <span class="mono">vision</span> are aliases: each one
-            is an ordered chain, not a single model. Prefix a provider to pin the request —{' '}
-            <span class="mono">nvidia/glm-5.3</span> skips the chain entirely.
+            <span class="mono">model</span> is the only variable.
           </p>
         </div>
       </section>

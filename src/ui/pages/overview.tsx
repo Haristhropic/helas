@@ -1,27 +1,7 @@
 import type { FC } from 'hono/jsx';
 import { raw } from 'hono/html';
-import {
-  AUTO_CHAIN,
-  CAPACITY_TODAY,
-  CHAIN_LIVE,
-  CHAIN_TOTAL,
-  CURRENT_HOUR,
-  HOURLY,
-  HOURLY_TOKENS,
-  HOUR_LABELS,
-  NEAR_CAP,
-  PROVIDERS_LIVE,
-  PROVIDER_USAGE,
-  RECENT_REQUESTS,
-  REQUESTS_TODAY,
-  TOKENS_TODAY,
-  WEIGHTED_P95,
-  burn,
-  compact,
-  providerName,
-  thousands,
-  utcStamp,
-} from '../../data/demo.ts';
+import { burn, compact, providerName, thousands, utcStamp } from '../../data/demo.ts';
+import type { DashboardData } from '../../data/index.ts';
 import { Chart, Mark, Section, relTime, statusOf } from '../components.tsx';
 
 export type OverviewMetric = 'requests' | 'tokens';
@@ -41,12 +21,12 @@ const LANE_LABEL: Record<string, string> = {
   pollinations: 'poll',
 };
 
-export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
+export const Overview: FC<{ data: DashboardData; metric: OverviewMetric }> = ({ data, metric }) => {
   const isTokens = metric === 'tokens';
-  const values = isTokens ? HOURLY_TOKENS : HOURLY;
-  const total = isTokens ? TOKENS_TODAY : REQUESTS_TODAY;
+  const values = isTokens ? data.hourlyTokens : data.hourly;
+  const total = isTokens ? data.tokensToday : data.requestsToday;
   const peak = Math.max(...values);
-  const usedShare = REQUESTS_TODAY / CAPACITY_TODAY;
+  const usedShare = data.capacityToday > 0 ? data.requestsToday / data.capacityToday : 0;
 
   return (
     <div class="stack">
@@ -54,13 +34,13 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
         <div>
           <h1>Free-tier router</h1>
           <p class="sub">
-            One OpenAI-compatible endpoint in front of {PROVIDERS_LIVE} free providers.{' '}
-            {thousands(REQUESTS_TODAY)} requests served today out of{' '}
-            {thousands(CAPACITY_TODAY)} available.
+            One OpenAI-compatible endpoint in front of {data.providersLive} free providers.{' '}
+            {thousands(data.requestsToday)} requests served today out of{' '}
+            {thousands(data.capacityToday)} available.
           </p>
         </div>
         <div class="head-actions">
-          <span class="stamp">{utcStamp()}</span>
+          <span class={data.live ? 'stamp' : 'stamp demo'}>{utcStamp()}{data.live ? '' : ' · demo data'}</span>
         </div>
       </div>
 
@@ -68,15 +48,15 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
       <Section title="Auto chain" aside={'what model: "auto" tries, in order'} action={{ href: '/providers', label: 'Edit order' }}>
         <div class="card">
           <div class="lane" role="list" aria-label="Fallback chain, segments sized by remaining quota today">
-            {AUTO_CHAIN.map((node) => {
-              const share = node.left / CHAIN_TOTAL;
+            {data.chain.map((node) => {
+              const share = data.chainTotal > 0 ? node.left / data.chainTotal : 0;
               const wide = share >= 0.05;
               return (
                 <div
                   class={`lane-seg ${node.state}${wide ? ' wide' : ''}`}
                   role="listitem"
                   data-name={LANE_LABEL[node.provider] ?? node.provider}
-                  style={`--grow: ${Math.max(node.left, 26)}; --share: ${share.toFixed(4)}`}
+                  style={`--grow: ${Math.max(node.left, 1)}; --share: ${share.toFixed(4)}`}
                   title={`${providerName(node.provider)} · ${node.family} · ${thousands(node.left)} left today`}
                 >
                   {wide ? (
@@ -91,15 +71,16 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
           </div>
 
           <div class="lane-meta">
-            <span class="lead">{thousands(CHAIN_TOTAL)} requests left across {AUTO_CHAIN.length} hops</span>
+            <span class="lead">{thousands(data.chainTotal)} requests left across {data.chain.length} hops</span>
             <span>
-              next up: {AUTO_CHAIN[0].provider}/{AUTO_CHAIN[0].family} ·{' '}
-              {thousands(AUTO_CHAIN[0].left)} left
+              {data.chain.length > 0
+                ? <>next up: {data.chain[0].provider}/{data.chain[0].family} · {thousands(data.chain[0].left)} left</>
+                : 'no chain configured'}
             </span>
           </div>
 
           <p class="lane-order">
-            {AUTO_CHAIN.map((node, i) => (
+            {data.chain.map((node, i) => (
               <>
                 {i > 0 ? <span class="arrow"> → </span> : null}
                 <span class={node.state === 'exhausted' ? 'out' : undefined}>{node.provider}</span>
@@ -127,13 +108,13 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
           <div class="kpi-strip">
             <a class="kpi" href="/?m=requests" aria-current={!isTokens ? 'true' : undefined}>
               <span class="kpi-label">Requests served</span>
-              <span class="kpi-value">{thousands(REQUESTS_TODAY)}</span>
-              <span class="kpi-note">of {thousands(CAPACITY_TODAY)} available</span>
+              <span class="kpi-value">{thousands(data.requestsToday)}</span>
+              <span class="kpi-note">of {thousands(data.capacityToday)} available</span>
             </a>
             <a class="kpi" href="/?m=tokens" aria-current={isTokens ? 'true' : undefined}>
               <span class="kpi-label">Tokens</span>
-              <span class="kpi-value">{compact(TOKENS_TODAY)}</span>
-              <span class="kpi-note">across {PROVIDERS_LIVE} providers</span>
+              <span class="kpi-value">{compact(data.tokensToday)}</span>
+              <span class="kpi-note">across {data.providersLive} providers</span>
             </a>
             <div class="kpi">
               <span class="kpi-label">Capacity used</span>
@@ -145,13 +126,13 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
             </div>
             <div class="kpi">
               <span class="kpi-label">Chain remaining</span>
-              <span class="kpi-value">{thousands(CHAIN_TOTAL)}</span>
-              <span class="kpi-note">{CHAIN_LIVE} of {AUTO_CHAIN.length} hops live</span>
+              <span class="kpi-value">{thousands(data.chainTotal)}</span>
+              <span class="kpi-note">{data.chainLive} of {data.chain.length} hops live</span>
             </div>
             <div class="kpi">
               <span class="kpi-label">p95 latency</span>
               <span class="kpi-value">
-                {thousands(WEIGHTED_P95)}
+                {thousands(data.weightedP95)}
                 <span class="unit">ms</span>
               </span>
               <span class="kpi-note">weighted by requests</span>
@@ -169,9 +150,9 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
               <Chart
                 config={{
                   kind: 'bars',
-                  labels: HOUR_LABELS,
+                  labels: data.hourLabels,
                   values,
-                  highlight: CURRENT_HOUR,
+                  highlight: data.currentHour,
                   format: isTokens ? 'compact' : 'int',
                   height: 224,
                   colour: 'var(--chart-3)',
@@ -179,7 +160,7 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
               />
               <div class="chart-foot">
                 <span>
-                  The blue bar is the hour in progress. Nothing after {HOUR_LABELS[CURRENT_HOUR]} has
+                  The blue bar is the hour in progress. Nothing after {data.hourLabels[data.currentHour]} has
                   happened yet.
                 </span>
                 <span>peak {isTokens ? compact(peak) : thousands(peak)}/h</span>
@@ -189,10 +170,10 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
             <div class="card">
               <div class="chart-note">
                 <span class="what">Closest to the cap</span>
-                <span class="total">6 of {PROVIDERS_LIVE}</span>
+                <span class="total">{data.nearCap.length} of {data.providersLive}</span>
               </div>
               <div class="rank">
-                {NEAR_CAP.map((p) => {
+                {data.nearCap.map((p) => {
                   const pct = burn(p);
                   const tone = pct >= 0.95 ? ' is-hot' : pct > 0.8 ? ' is-warm' : '';
                   return (
@@ -217,7 +198,7 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
       </Section>
 
       {/* ── recent requests ── */}
-      <Section title="Recent requests" aside="last 12 minutes" action={{ href: '/usage', label: 'See all' }}>
+      <Section title="Recent requests" aside={data.live ? 'last requests this UTC day' : 'last 12 minutes'} action={{ href: '/usage', label: 'See all' }}>
         <div class="card">
           <table class="table">
             <thead>
@@ -232,42 +213,50 @@ export const Overview: FC<{ metric: OverviewMetric }> = ({ metric }) => {
               </tr>
             </thead>
             <tbody>
-              {RECENT_REQUESTS.map((r) => (
+              {data.requests.length === 0 ? (
                 <tr>
-                  <td class="id">
-                    <span>{r.id.slice(0, 8)}…</span>
-                    <button class="copy" type="button" data-copy={r.id} aria-label={`Copy request id ${r.id}`} title="Copy full id">
-                      <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-                        {raw(COPY_ICON)}
-                      </svg>
-                    </button>
-                    <span class="dim ago">{relTime(r.minutesAgo)}</span>
-                  </td>
-                  <td class="model">{r.family}</td>
-                  <td class="dim">{providerName(r.provider)}</td>
-                  <td class="r">
-                    {r.status === 200 ? (
-                      <span class="num">{r.status}</span>
-                    ) : (
-                      <Mark tone="bad">{r.status}</Mark>
-                    )}
-                  </td>
-                  <td class="r num">{thousands(r.ms)} ms</td>
-                  <td class="r num">{thousands(r.tokens)}</td>
-                  <td class="r num">
-                    {r.fallbacks === 0 ? <span class="zero">0</span> : r.fallbacks}
+                  <td colspan={7} class="empty">
+                    No requests today yet{data.live ? '' : ' (sample data)'}.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                data.requests.map((r) => (
+                  <tr>
+                    <td class="id">
+                      <span>{r.id.slice(0, 8)}…</span>
+                      <button class="copy" type="button" data-copy={r.id} aria-label={`Copy request id ${r.id}`} title="Copy full id">
+                        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+                          {raw(COPY_ICON)}
+                        </svg>
+                      </button>
+                      <span class="dim ago">{relTime(r.minutesAgo)}</span>
+                    </td>
+                    <td class="model">{r.family}</td>
+                    <td class="dim">{providerName(r.provider)}</td>
+                    <td class="r">
+                      {r.status === 200 ? (
+                        <span class="num">{r.status}</span>
+                      ) : (
+                        <Mark tone="bad">{r.status}</Mark>
+                      )}
+                    </td>
+                    <td class="r num">{thousands(r.ms)} ms</td>
+                    <td class="r num">{thousands(r.tokens)}</td>
+                    <td class="r num">
+                      {r.fallbacks === 0 ? <span class="zero">0</span> : r.fallbacks}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </Section>
 
       <p class="footnote">
-        Sample figures. Keys are sealed with AES-256-GCM before they are written; the router walks the
-        chain until one provider answers with headers, which is the last moment a fallback is still
-        possible.
+        {data.live
+          ? 'Live from Neon. Keys are sealed with AES-256-GCM before they are written; the router walks the chain until one provider answers with headers, which is the last moment a fallback is still possible.'
+          : 'Demo dataset — set DATABASE_URL to render live traffic.'}
       </p>
     </div>
   );

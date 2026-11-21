@@ -332,6 +332,19 @@
     });
   }
 
+  function initReveal() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-reveal-toggle]'), function (button) {
+      button.addEventListener('click', function () {
+        var target = document.getElementById(button.getAttribute('data-reveal-toggle'));
+        if (!target) return;
+        var revealed = target.type === 'text';
+        target.type = revealed ? 'password' : 'text';
+        button.textContent = revealed ? 'Reveal' : 'Hide';
+        button.setAttribute('aria-pressed', revealed ? 'false' : 'true');
+      });
+    });
+  }
+
   function start() {
     mountCharts();
     initMenu();
@@ -340,6 +353,7 @@
     initPrefill();
     initTables();
     initPlayground();
+    initReveal();
   }
 
   if (document.readyState === 'loading') {

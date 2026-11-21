@@ -10,22 +10,21 @@ import { routeChat } from './router/core.ts';
 import { recordUsage } from './quota/buckets.ts';
 import { PROVIDERS_BY_ID } from './providers/catalog.ts';
 import { syncCatalog } from './models/sync.ts';
-import { MODEL_ROWS, PROVIDER_USAGE } from './data/demo.ts';
+import { loadDashboard } from './data/index.ts';
 import { Layout, type NavId } from './ui/layout.tsx';
-import { Overview, type OverviewMetric } from './ui/pages/overview.tsx';
-import { Models, type ModelFilter } from './ui/pages/models.tsx';
+import { Overview } from './ui/pages/overview.tsx';
+import { Models } from './ui/pages/models.tsx';
 import { Providers } from './ui/pages/providers.tsx';
-import { Usage, type UsageMetric } from './ui/pages/usage.tsx';
+import { Usage } from './ui/pages/usage.tsx';
 import { Login } from './ui/pages/login.tsx';
 import { Playground } from './ui/pages/playground.tsx';
+import { Endpoint } from './ui/pages/endpoint.tsx';
 
 const app = new Hono();
 
-const ALERTS = PROVIDER_USAGE.filter((p) => p.status === 'degraded').length;
-
 function page(active: NavId, title: string, shortTitle: string, c: Context, children: unknown) {
   return c.html(
-    <Layout title={title} active={active} shortTitle={shortTitle} alerts={ALERTS}>
+    <Layout title={title} active={active} shortTitle={shortTitle} alerts={0}>
       {children}
     </Layout>,
   );
@@ -39,38 +38,47 @@ function notice(c: Context): string | undefined {
 
 /* ── dashboard ───────────────────────────────────────────────────────────── */
 
-app.get('/', requireDashboard, (c) => {
-  const metric: OverviewMetric = c.req.query('m') === 'tokens' ? 'tokens' : 'requests';
-  return page('overview', 'Overview', 'Overview', c, <Overview metric={metric} />);
+app.get('/', requireDashboard, async (c) => {
+  const data = await loadDashboard();
+  const metric: 'requests' | 'tokens' = c.req.query('m') === 'tokens' ? 'tokens' : 'requests';
+  return page('overview', 'Overview', 'Overview', c, <Overview data={data} metric={metric} />);
 });
 
-app.get('/models', requireDashboard, (c) => {
+app.get('/models', requireDashboard, async (c) => {
+  const data = await loadDashboard();
   const asked = c.req.query('f');
-  const filter: ModelFilter =
-    asked === 'tools' || asked === 'vision' || asked === 'long' ? asked : 'all';
-  return page('models', 'Models', 'Models', c, <Models filter={filter} />);
+  const filter = asked === 'tools' || asked === 'vision' || asked === 'long' ? asked : 'all';
+  return page('models', 'Models', 'Models', c, <Models data={data} filter={filter} />);
 });
 
-app.get('/providers', requireDashboard, (c) => {
+app.get('/providers', requireDashboard, async (c) => {
   const routerKey = env.routerKey;
   const keyHint = routerKey ? `sk-••••••••••••${routerKey.slice(-4)}` : 'not set';
+  const data = await loadDashboard();
   return page(
     'providers',
     'Providers',
     'Providers',
     c,
-    <Providers base={`${new URL(c.req.url).origin}/v1`} keyHint={keyHint} notice={notice(c)} />,
+    <Providers base={`${new URL(c.req.url).origin}/v1`} keyHint={keyHint} data={data} notice={notice(c)} />,
   );
 });
 
-app.get('/usage', requireDashboard, (c) => {
+app.get('/usage', requireDashboard, async (c) => {
+  const data = await loadDashboard();
   const asked = c.req.query('m');
-  const metric: UsageMetric = asked === 'tokens' || asked === 'burn' ? asked : 'requests';
-  return page('usage', 'Usage', 'Usage', c, <Usage metric={metric} />);
+  const metric: 'requests' | 'tokens' | 'burn' = asked === 'tokens' || asked === 'burn' ? asked : 'requests';
+  return page('usage', 'Usage', 'Usage', c, <Usage data={data} metric={metric} />);
 });
 
-app.get('/playground', requireDashboard, (c) => {
-  return page('playground', 'Playground', 'Playground', c, <Playground />);
+app.get('/playground', requireDashboard, async (c) => {
+  const data = await loadDashboard();
+  return page('playground', 'Playground', 'Playground', c, <Playground data={data} />);
+});
+
+app.get('/endpoint', requireDashboard, (c) => {
+  const base = `${new URL(c.req.url).origin}/v1`;
+  return page('endpoint', 'Endpoint', 'Endpoint', c, <Endpoint base={base} apiKey={env.routerKey} />);
 });
 
 /* ── dashboard writes ────────────────────────────────────────────────────── */
@@ -137,10 +145,6 @@ app.post('/providers/limits', requireDashboard, async (c) => {
   }
 });
 
-/**
- * The route and the CLI script share one implementation, so a sync run from the
- * console and a sync run from a terminal cannot drift apart.
- */
 app.post('/providers/sync', requireDashboard, async (c) => {
   if (env.isDemo) return back(c, 'No DATABASE_URL is set. Run `npm run sync` with keys in the env instead.');
 
@@ -242,18 +246,19 @@ app.post('/api/playground/chat', requireDashboard, async (c) => {
 
 app.get('/healthz', (c) => c.json({ ok: true, demo: env.isDemo }));
 
-app.get('/v1/models', requireRouterKey, (c) => {
+app.get('/v1/models', requireRouterKey, async (c) => {
   const created = Math.floor(Date.now() / 1000);
-  const ids: string[] = ['auto', 'fast', 'smart', 'vision', 'tiptip'];
-  for (const row of MODEL_ROWS) ids.push(row.family);
-  for (const row of MODEL_ROWS) {
+  const ids: string[] = ['auto', 'fast', 'smart', 'vision', 'tiptip', 'all'];
+  const data = await loadDashboard();
+  for (const row of data.models) ids.push(row.family);
+  for (const row of data.models) {
     for (const providerId of row.providers) ids.push(`${providerId}/${row.family}`);
   }
   const seen = new Set<string>();
-  const data = ids
+  const list = ids
     .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
     .map((id) => ({ id, object: 'model', created, owned_by: 'router' }));
-  return c.json({ object: 'list', data });
+  return c.json({ object: 'list', data: list });
 });
 
 app.post('/v1/chat/completions', requireRouterKey, async (c) => {
@@ -261,23 +266,13 @@ app.post('/v1/chat/completions', requireRouterKey, async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json(
-      { error: { code: 'invalid_json', message: 'The request body is not valid JSON.' } },
-      400,
-    );
+    return c.json({ error: { code: 'invalid_json', message: 'The request body is not valid JSON.' } }, 400);
   }
 
   const result = await routeChat(body, c.req.raw.signal);
-
   if (!result.ok) {
     return c.json(
-      {
-        error: {
-          code: result.code,
-          message: result.detail,
-          attempts: result.attempts,
-        },
-      },
+      { error: { code: result.code, message: result.detail, attempts: result.attempts } },
       result.status as 400,
     );
   }
@@ -292,9 +287,6 @@ app.post('/v1/chat/completions', requireRouterKey, async (c) => {
   const contentType = response.headers.get('content-type') ?? 'application/json';
 
   if (contentType.includes('text/event-stream') && response.body) {
-    // The count is committed before the first byte: the quota was spent the
-    // moment the upstream answered with headers. Tokens on a stream are settled
-    // by the provider's trailing usage frame, which we do not parse here.
     void recordUsage(candidate.providerId, 0).catch(() => {});
     return c.body(response.body, 200, {
       ...headers,

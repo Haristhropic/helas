@@ -24,6 +24,7 @@ import {
   type Limit,
 } from '../quota/buckets.ts';
 import { AUTO_CHAIN, MODEL_ROWS, PROVIDER_USAGE } from '../data/demo.ts';
+import { ZERO_MIX_CHAIN } from '../data/zeroCostModels.ts';
 
 export interface Candidate {
   providerId: string;
@@ -125,6 +126,7 @@ interface RawCandidate {
 /** The families an alias stands for, best first. */
 const ALIAS_CHAINS: Record<string, string[]> = {
   auto: AUTO_CHAIN.map((n) => `${n.provider}/${n.family}`),
+  all: ZERO_MIX_CHAIN,
   fast: ['groq/llama-3.3-70b', 'cerebras/gpt-oss-120b', 'nvidia/gemma-4-31b-it'],
   smart: ['nvidia/glm-5.3', 'chutes/kimi-k3.1-pro', 'huggingface/qwen3.8-27b'],
   vision: ['nvidia/gemma-4-31b-it', 'gemini/gemini-3.5-flash-lite'],
